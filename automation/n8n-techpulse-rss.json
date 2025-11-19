@@ -1,5 +1,5 @@
 {
-  "name": "RSS Ingest for Computer Weekly",
+  "name": "TechPulse RSS Ingest (Computer Weekly)",
   "nodes": [
     {
       "parameters": {
@@ -16,12 +16,10 @@
     },
     {
       "parameters": {
-        "url": "https://www.computerweekly.com/rss/Latest-IT-news.xml",
-        "responseFormat": "XML",
-        "options": {}
+        "url": "https://www.computerweekly.com/rss/Latest-IT-news.xml"
       },
       "name": "Fetch RSS Feed",
-      "type": "n8n-nodes-base.httpRequest",
+      "type": "n8n-nodes-base.rssFeedRead",
       "typeVersion": 1,
       "position": [
         300,
@@ -30,7 +28,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const items = $items(\"Fetch RSS Feed\")[0].json.rss.channel[0].item;\n\nconst normalizedItems = items.map(feedItem => {\n  const title = feedItem.title[0];\n  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');\n\n  return {\n    json: {\n      title: title,\n      slug: slug,\n      summary: feedItem.description[0],\n      content: feedItem[\"content:encoded\"] ? feedItem[\"content:encoded\"][0] : feedItem.description[0],\n      category: \"IT News\",\n      tags: [\"news\", \"computer weekly\"],\n      imageUrl: (feedItem[\"media:content\"] && feedItem[\"media:content\"][0] && feedItem[\"media:content\"][0].$) ? feedItem[\"media:content\"][0].$.url : \"\",\n      publishedAt: feedItem.pubDate[0],\n      featured: false\n    }\n  };\n});\n\nreturn normalizedItems;"
+        "functionCode": "const items = $items(\"Fetch RSS Feed\");\n\nconst normalizedItems = items.map(item => {\n  const title = item.json.title;\n  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');\n\n  return {\n    json: {\n      title: title,\n      slug: slug,\n      summary: item.json.contentSnippet || (item.json.content ? item.json.content.substring(0, 250) : 'No summary available'),\n      content: item.json.content || 'No content available',\n      category: \"IT News\",\n      tags: [\"news\", \"computer weekly\"],\n      imageUrl: \"\",\n      publishedAt: item.json.pubDate,\n      featured: false\n    }\n  };\n});\n\nreturn normalizedItems;"
       },
       "name": "Normalize Data",
       "type": "n8n-nodes-base.function",
@@ -60,7 +58,7 @@
       ],
       "credentials": {
         "basicAuth": {
-          "id": "placeholder_id",
+          "id": "_placeholder_id",
           "name": "Tech News Basic Auth",
           "data": {
             "user": "Newbythekingsmaker",
