@@ -142,6 +142,17 @@ export function getNewsMeta() {
 export function createNews(payload) {
   const news = readNews();
   const now = new Date().toISOString();
+  const title = sanitizeString(payload.title);
+
+  // First, try to find an existing article with the exact same title
+  let existingIndex = news.findIndex((n) => n.title.toLowerCase() === title.toLowerCase());
+
+  // If not found by title, try to find by slug (for legacy articles)
+  if (existingIndex === -1) {
+    const slug = buildSlug({ title });
+    existingIndex = news.findIndex((n) => n.slug === slug);
+  }
+
   const slug = buildSlug(payload);
   const tags = sanitizeTags(payload.tags);
   const summary = sanitizeString(payload.summary || '');
@@ -149,7 +160,6 @@ export function createNews(payload) {
   const category = sanitizeString(payload.category || 'General');
   const source = sanitizeString(payload.source || '');
   const imageUrl = sanitizeString(payload.imageUrl || '');
-  const existingIndex = news.findIndex((n) => n.slug === slug);
 
   const baseItem =
     existingIndex >= 0
@@ -161,7 +171,7 @@ export function createNews(payload) {
 
   const item = {
     ...baseItem,
-    title: sanitizeString(payload.title),
+    title,
     slug,
     summary,
     content,
@@ -181,6 +191,6 @@ export function createNews(payload) {
   }
 
   writeNews(news);
-  archiveOldNews(); // Call the archiving function after creating news
+  archiveOldNews();
   return item;
 }

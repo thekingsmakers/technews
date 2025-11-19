@@ -6,8 +6,32 @@ import {
   getNewsMeta,
   getArchivedNews
 } from '../newsStore.js';
+import { buildRssFeed } from '../rssFeed.js';
 
 const router = Router();
+
+// RSS Feed Route
+router.get('/rss.xml', (req, res) => {
+  try {
+    const items = getAllNews();
+    const siteUrl = `${req.protocol}://${req.get('host')}`;
+    const feedUrl = `${siteUrl}/api/news/rss.xml`;
+
+    const rssXml = buildRssFeed({
+      items,
+      siteUrl,
+      feedUrl,
+      title: 'TheKingsmaker Tech News',
+      description: 'The latest in tech, AI, and development news.'
+    });
+
+    res.type('application/rss+xml');
+    res.send(rssXml);
+  } catch (error) {
+    console.error('Failed to generate RSS feed:', error);
+    res.status(500).send('Could not generate RSS feed');
+  }
+});
 
 router.get('/', (req, res) => {
   // Extract filtering and pagination parameters from the query string
