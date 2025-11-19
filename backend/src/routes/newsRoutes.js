@@ -44,25 +44,14 @@ router.get('/:slug', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { title, content } = req.body;
-  if (!title || !content) {
-    return res.status(400).json({ error: 'title and content are required' });
+  // REMOVED faulty validation. The createNews function handles sanitization.
+  try {
+    const item = createNews(req.body);
+    res.status(201).json({ item });
+  } catch (error) {
+    console.error("Failed to create news item:", error);
+    res.status(500).json({ error: 'Internal server error while creating news item.' });
   }
-
-  if (typeof title !== 'string' || title.length > 200) {
-    return res
-      .status(400)
-      .json({ error: 'title must be a string up to 200 characters' });
-  }
-
-  if (typeof content !== 'string' || content.length > 20000) {
-    return res
-      .status(400)
-      .json({ error: 'content must be a string up to 20000 characters' });
-  }
-
-  const item = createNews(req.body);
-  res.status(201).json({ item });
 });
 
 export default router;
