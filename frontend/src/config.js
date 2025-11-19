@@ -1,21 +1,11 @@
-const getWindowOrigin = () => {
-  if (typeof window === 'undefined' || !window.location) {
-    return '';
-  }
-  return window.location.origin;
-};
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/';
 
-const normalizeBaseUrl = (value) => {
-  if (!value) return '';
-  return value.replace(/\/$/, '');
-};
-
-const API_BASE_URL = (() => {
-  const fromEnv = import.meta.env.VITE_API_BASE_URL?.trim();
-  const fallback = getWindowOrigin() || 'http://localhost:5000';
-  return normalizeBaseUrl(fromEnv || fallback);
-})();
-
-const API_URL = `${API_BASE_URL}/api`;
+// In development (when running `npm run dev`), we use a relative path for API requests.
+// This tells the browser to send the request to the Vite development server.
+// The Vite server will then use its `proxy` configuration to forward the request to the backend.
+//
+// In production (after `npm run build`), we use the full, absolute URL provided by the environment variable,
+// as the Vite proxy is not available.
+const API_URL = import.meta.env.DEV ? '/api' : `${API_BASE_URL}/api`;
 
 export { API_BASE_URL, API_URL };
