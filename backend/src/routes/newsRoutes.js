@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import basicAuth from 'express-basic-auth';
 import {
   getAllNews,
   getNewsBySlug,
@@ -8,6 +9,24 @@ import {
 } from '../newsStore.js';
 
 const router = Router();
+
+// --- Authentication Middleware ---
+// This is only for the POST route to create/update news
+const users = {};
+if (process.env.API_USERNAME && process.env.API_PASSWORD) {
+    users[process.env.API_USERNAME] = process.env.API_PASSWORD;
+} else {
+    console.warn("API username or password are not set. The POST /api/news endpoint is unprotected.");
+}
+
+const authMiddleware = basicAuth({
+  users,
+  challenge: true,
+  unauthorizedResponse: { error: 'Unauthorized' }
+});
+
+// --- Public GET Routes ---
+// These are open to the public and do not require a password
 
 router.get('/', (req, res) => {
   const { category, tag, q } = req.query;
@@ -43,8 +62,10 @@ router.get('/:slug', (req, res) => {
   res.json({ item });
 });
 
-router.post('/', (req, res) => {
-  // REMOVED faulty validation. The createNews function handles sanitization.
+// --- Protected POST Route ---
+// This route requires a password to create or update news articles
+
+router.post('/', authMiddleware, (req, res) => {
   try {
     const item = createNews(req.body);
     res.status(201).json({ item });

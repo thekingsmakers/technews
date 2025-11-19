@@ -5,7 +5,6 @@ import os from 'os';
 import newsRoutes from './routes/newsRoutes.js';
 import { getAllNews } from './newsStore.js';
 import { buildRssFeed } from './rssFeed.js';
-import basicAuth from 'express-basic-auth';
 
 const app = express();
 
@@ -21,17 +20,6 @@ app.set('trust proxy', 1); // respect Cloudflare / proxy IPs
 
 // Enable CORS for all origins
 app.use(cors());
-
-// Basic Authentication
-const users = {};
-users[process.env.API_USERNAME] = process.env.API_PASSWORD;
-
-const authMiddleware = basicAuth({
-  users,
-  challenge: true,
-  unauthorizedResponse: { error: 'Unauthorized' }
-});
-
 
 // Request logging middleware
 app.use((req, _res, next) => {
@@ -94,8 +82,8 @@ app.get('/api/request-info', (req, res) => {
   });
 });
 
-// API Routes
-app.use('/api/news', authMiddleware, newsRoutes);
+// API Routes - now public by default
+app.use('/api/news', newsRoutes);
 
 // Sitemap
 app.get('/sitemap.xml', (_req, res) => {
