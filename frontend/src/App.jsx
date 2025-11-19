@@ -4,6 +4,7 @@ import Layout from './components/Layout.jsx';
 import HomePage from './pages/HomePage.jsx';
 import ArticlePage from './pages/ArticlePage.jsx';
 import CategoryPage from './pages/CategoryPage.jsx';
+import ArchivePage from './pages/ArchivePage.jsx';
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/article/:slug" element={<ArticlePage />} />
         <Route path="/category/:name" element={<CategoryPage />} />
+        <Route path="/archive" element={<ArchivePage />} />
       </Routes>
     </Layout>
   );

@@ -5,14 +5,14 @@ export default function Header({ onToggleTheme, theme }) {
   return (
     <header className="header">
       <Link to="/" className="logo">
-        Tech<span>Pulse</span>
+        thekingsmaker <span>Tech News</span>
       </Link>
       <nav className="nav">
         <Link to="/">Home</Link>
-        <a href="#ai">AI</a>
-        <a href="#cloud">Cloud</a>
-        <a href="#security">Security</a>
-        <a href="#devtools">Dev Tools</a>
+        <Link to="/category/AI">AI</Link>
+        <Link to="/category/Cloud">Cloud</Link>
+        <Link to="/category/Security">Security</Link>
+        <Link to="/archive">Archive</Link>
       </nav>
       <button className="theme-toggle" onClick={onToggleTheme}>
         {theme === 'dark' ? '🌙' : '☀️'}

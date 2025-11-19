@@ -6,7 +6,7 @@ export default ({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   
   // Get configuration from environment variables or use defaults
-  const port = parseInt(env.VITE_PORT || '4444', 10);
+  const port = parseInt(env.VITE_PORT || '6080', 10);
   const apiUrl = env.VITE_API_BASE_URL || 'http://localhost:5000';
   const host = '0.0.0.0'; // Listen on all network interfaces
   const isNetwork = env.VITE_NETWORK === 'true';

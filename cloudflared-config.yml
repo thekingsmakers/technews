@@ -1,16 +1,19 @@
 tunnel: your-tunnel-id
 credentials-file: ./cloudflared/credentials.json
 
-# This is a basic configuration that forwards all traffic to your backend
-# No DNS records are created automatically with this config
-# You'll need to manually create DNS records pointing to your tunnel
+# Point hostname records (api.thekingsmaker.org / thekingsmaker.org) at this tunnel
+# via cloudflared tunnel route dns <tunnel-name> <hostname>
 
-# HTTP to HTTPS redirect
 ingress:
-  - service: http_status:301
-    originRequest:
-      http2httpOriginPort: 80
-  - service: https://localhost:8000
+  - hostname: api.thekingsmaker.org
+    service: http://localhost:5000
     originRequest:
       noTLSVerify: true
+      connectTimeout: 30s
+      disableChunkedEncoding: true
+  - hostname: thekingsmaker.org
+    service: http://localhost:6080
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
   - service: http_status:404

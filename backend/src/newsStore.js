@@ -7,14 +7,53 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_PATH = path.join(__dirname, '..', 'data', 'news.json');
 
+function ensureDataFile() {
+  const dir = path.dirname(DATA_PATH);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  if (!fs.existsSync(DATA_PATH)) {
+    fs.writeFileSync(DATA_PATH, '[]', 'utf-8');
+  }
+}
+
 function readNews() {
-  if (!fs.existsSync(DATA_PATH)) return [];
-  const raw = fs.readFileSync(DATA_PATH, 'utf-8');
-  return JSON.parse(raw || '[]');
+  try {
+    ensureDataFile();
+    const raw = fs.readFileSync(DATA_PATH, 'utf-8');
+    return JSON.parse(raw || '[]');
+  } catch (error) {
+    console.error('Failed to read news store:', error);
+    return [];
+  }
 }
 
 function writeNews(news) {
+  ensureDataFile();
   fs.writeFileSync(DATA_PATH, JSON.stringify(news, null, 2), 'utf-8');
+}
+
+const sanitizeString = (value = '') =>
+  (value ?? '')
+    .toString()
+    .trim();
+
+const sanitizeTags = (tags = []) =>
+  (Array.isArray(tags) ? tags : [])
+    .map((tag) => sanitizeString(tag))
+    .filter(Boolean);
+
+const slugify = (value) => {
+  if (!value) return '';
+  return sanitizeString(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+};
+
+function buildSlug({ slug, title }) {
+  const base = slugify(slug || title);
+  return base || crypto.randomUUID();
 }
 
 export function getAllNews({ category, tag, q } = {}) {
@@ -84,31 +123,45 @@ export function getNewsMeta() {
 
 export function createNews(payload) {
   const news = readNews();
-  const id = crypto.randomUUID();
   const now = new Date().toISOString();
-  const slug =
-    payload.slug ||
-    payload.title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
+  const slug = buildSlug(payload);
+  const tags = sanitizeTags(payload.tags);
+  const summary = sanitizeString(payload.summary || '');
+  const content = sanitizeString(payload.content || '');
+  const category = sanitizeString(payload.category || 'General');
+  const source = sanitizeString(payload.source || 'n8n');
+  const imageUrl = sanitizeString(payload.imageUrl || '');
+  const existingIndex = news.findIndex((n) => n.slug === slug);
+
+  const baseItem =
+    existingIndex >= 0
+      ? news[existingIndex]
+      : {
+          id: crypto.randomUUID(),
+          createdAt: now
+        };
 
   const item = {
-    id,
-    title: payload.title,
+    ...baseItem,
+    title: sanitizeString(payload.title),
     slug,
-    summary: payload.summary || '',
-    content: payload.content || '',
-    source: payload.source || 'n8n',
-    category: payload.category || 'General',
-    tags: payload.tags || [],
-    imageUrl: payload.imageUrl || null,
-    publishedAt: payload.publishedAt || now,
+    summary,
+    content,
+    source,
+    category,
+    tags,
+    imageUrl: imageUrl || null,
+    publishedAt: payload.publishedAt || baseItem.publishedAt || now,
     updatedAt: now,
     featured: Boolean(payload.featured)
   };
 
-  news.push(item);
+  if (existingIndex >= 0) {
+    news[existingIndex] = item;
+  } else {
+    news.push(item);
+  }
+
   writeNews(news);
   return item;
 }

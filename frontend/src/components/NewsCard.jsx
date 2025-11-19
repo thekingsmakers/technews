@@ -1,7 +1,8 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
-export default function NewsCard({ article }) {
+export default function NewsCard({ article, layout = 'standard' }) {
+  const navigate = useNavigate();
   const date = new Date(article.publishedAt);
   const formatted = date.toLocaleString(undefined, {
     year: 'numeric',
@@ -11,31 +12,62 @@ export default function NewsCard({ article }) {
     minute: '2-digit'
   });
 
+  const category = article.category || 'General';
+  const layoutClass = `news-card ${article.featured ? 'featured' : ''} news-card-${layout}`;
+
+  const goToArticle = () => navigate(`/article/${article.slug}`);
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      goToArticle();
+    }
+  };
+  const goToCategory = (event, value) => {
+    event.stopPropagation();
+    navigate(`/category/${encodeURIComponent(value)}`);
+  };
+
   return (
-    <article className={`news-card ${article.featured ? 'featured' : ''}`}>
-      <Link to={`/article/${article.slug}`} className="news-card-link">
-        {article.imageUrl && (
-          <div className="news-card-image">
-            <img src={article.imageUrl} alt={article.title} />
-          </div>
-        )}
-        <div className="news-card-body">
+    <article
+      className={layoutClass}
+      role="button"
+      onClick={goToArticle}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      aria-label={`Read article ${article.title}`}
+    >
+      {article.imageUrl && (
+        <div className="news-card-image">
+          <img src={article.imageUrl} alt={article.title} loading="lazy" />
+        </div>
+      )}
+      <div className="news-card-body">
         <div className="news-card-meta">
-          <span className="category">{article.category}</span>
+          <button
+            type="button"
+            className="category-link"
+            onClick={(event) => goToCategory(event, category)}
+          >
+            {category}
+          </button>
           <span className="date">{formatted}</span>
         </div>
         <h2>{article.title}</h2>
         <p className="summary">{article.summary}</p>
         <div className="tags">
           {(article.tags || []).map((tag) => (
-            <span key={tag} className="tag">
+            <button
+              type="button"
+              key={tag}
+              className="tag"
+              onClick={(event) => goToCategory(event, tag)}
+            >
               #{tag}
-            </span>
+            </button>
           ))}
         </div>
-          <div className="source">Source: {article.source}</div>
-        </div>
-      </Link>
+        <div className="source">Source: {article.source}</div>
+      </div>
     </article>
   );
 }

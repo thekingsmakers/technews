@@ -1,0 +1,125 @@
+{
+  "name": "sample-fetch-to-tech-news",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 60,
+              "unit": "minutes"
+            }
+          ]
+        }
+      },
+      "id": "CronHourly",
+      "name": "Every 60 minutes",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        260,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://newsdata.io/api/1/news",
+        "responseFormat": "json",
+        "jsonParameters": true,
+        "queryParametersJson": "{\"category\":\"technology\",\"language\":\"en\"}"
+      },
+      "id": "FetchFeed",
+      "name": "Fetch external feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3.1,
+      "position": [
+        520,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const stories = items[0].json.results || [];\nreturn stories.map((story) => {\n  const title = story.title || 'Untitled';\n  const summary = story.description || title;\n  const slug = title\n    .toLowerCase()\n    .replace(/[^a-z0-9]+/g, '-')\n    .replace(/(^-|-$)/g, '');\n  return {\n    json: {\n      title,\n      summary,\n      content: story.content || summary,\n      category: story.category?.[0] || 'General',\n      tags: story.keywords || [],\n      source: story.source_id || 'newsdata.io',\n      publishedAt: story.pubDate || new Date().toISOString(),\n      slug\n    }\n  };\n});"
+      },
+      "id": "NormalizeFeed",
+      "name": "Normalize payload",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [
+        780,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.thekingsmaker.org/api/news",
+        "responseFormat": "json",
+        "jsonParameters": true,
+        "sendBody": true,
+        "bodyParametersJson": "={{$json}}",
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "x-api-key",
+              "value": "REPLACE_WITH_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "PostArticle",
+      "name": "Publish to API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3.1,
+      "position": [
+        1040,
+        -40
+      ]
+    }
+  ],
+  "connections": {
+    "Every 60 minutes": {
+      "main": [
+        [
+          {
+            "node": "Fetch external feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch external feed": {
+      "main": [
+        [
+          {
+            "node": "Normalize payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize payload": {
+      "main": [
+        [
+          {
+            "node": "Publish to API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "UTC"
+  },
+  "versionId": "sample-fetch-to-tech-news"
+}
+

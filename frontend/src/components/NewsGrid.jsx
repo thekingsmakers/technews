@@ -8,9 +8,10 @@ export default function NewsGrid({ items }) {
 
   return (
     <div className="news-grid">
-      {items.map((item) => (
-        <NewsCard key={item.id} article={item} />
-      ))}
+      {items.map((item, index) => {
+        const layout = index === 0 ? 'headline' : index < 3 ? 'highlight' : 'standard';
+        return <NewsCard key={item.id || item.slug} article={item} layout={layout} />;
+      })}
     </div>
   );
 }
