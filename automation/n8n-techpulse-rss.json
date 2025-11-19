@@ -1,106 +1,180 @@
 {
-  "name": "TechPulse RSS Ingest (Computer Weekly)",
+  "name": "TechPulse RSS Import — Stable v2",
   "nodes": [
     {
       "parameters": {
-        "rule": "cron",
-        "cronTime": "*/30 * * * *"
+        "batchSize": 1,
+        "options": {}
       },
-      "name": "Scheduled Trigger",
+      "id": "7f15ae2d-52a6-42a3-b7cb-f6821aacd418",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [
+        2304,
+        1568
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "2cb18873-213b-41ab-b111-38e500509686",
+      "name": "Next Batch",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2704,
+        1568
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "id": "916aebfa-1af4-4be1-9841-0b2c7c1adb38",
+      "name": "Schedule Trigger1",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1,
       "position": [
-        100,
-        300
+        1696,
+        1568
       ]
     },
     {
       "parameters": {
-        "url": "https://www.computerweekly.com/rss/Latest-IT-news.xml"
+        "url": "https://www.computerweekly.com/rss/Latest-IT-news.xml",
+        "options": {}
       },
-      "name": "Fetch RSS Feed",
+      "id": "562cf68c-fe4a-408b-9867-96d09ce88763",
+      "name": "Fetch RSS Feed1",
       "type": "n8n-nodes-base.rssFeedRead",
       "typeVersion": 1,
       "position": [
-        300,
-        300
+        1904,
+        1568
       ]
     },
     {
       "parameters": {
-        "functionCode": "const items = $items(\"Fetch RSS Feed\");\n\nconst normalizedItems = items.map(item => {\n  const title = item.json.title;\n  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');\n\n  return {\n    json: {\n      title: title,\n      slug: slug,\n      summary: item.json.contentSnippet || (item.json.content ? item.json.content.substring(0, 250) : 'No summary available'),\n      content: item.json.content || 'No content available',\n      category: \"IT News\",\n      tags: [\"news\", \"computer weekly\"],\n      imageUrl: \"\",\n      publishedAt: item.json.pubDate,\n      featured: false\n    }\n  };\n});\n\nreturn normalizedItems;"
+        "functionCode": "const items = $input.all();\n\nreturn items.map(item => {\n  const title = item.json.title || \"Untitled\";\n\n  const slug = title\n    .toLowerCase()\n    .replace(/[^a-z0-9]+/g, '-')\n    .replace(/(^-|-$)/g, '');\n\n  // Clean & trim big HTML content\n  const rawContent = item.json.content || 'No content available';\n  const cleaned = rawContent\n    .replace(/<[^>]*>/g, '')   // remove HTML\n    .replace(/\\s+/g, ' ')      // collapse whitespace\n    .trim()\n    .substring(0, 5000);        // prevent HUGE payload\n\n  return {\n    json: {\n      title,\n      slug,\n      summary: (item.json.contentSnippet || cleaned.substring(0, 250)),\n      content: cleaned,\n      category: \"IT News\",\n      tags: [\"news\", \"computer weekly\"],\n      imageUrl: \"\",\n      publishedAt: item.json.pubDate || null,\n      featured: false\n    }\n  };\n});"
       },
-      "name": "Normalize Data",
+      "id": "922dbb72-ee1f-4de2-a615-a3e6806d3309",
+      "name": "Normalize Data1",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
       "position": [
-        500,
-        300
+        2096,
+        1568
       ]
     },
     {
       "parameters": {
-        "url": "https://api.thekingsmaker.org/api/news",
         "authentication": "basicAuth",
+        "requestMethod": "POST",
+        "url": "http://192.168.1.114:5000/api/news",
+        "jsonParameters": true,
         "options": {
-          "body": "={{$node[\"Normalize Data\"].json}}",
-          "headers": {
-            "Content-Type": "application/json"
-          }
-        }
+          "timeout": 30000
+        },
+        "bodyParametersJson": "={\n  \"title\": \"{{ $json.title }}\",\n  \"content\": \"{{ $json.content }}\",\n  \"slug\": \"{{ $json.slug }}\",\n  \"summary\": \"{{ $json.summary }}\",\n  \"category\": \"{{ $json.category }}\",\n  \"tags\": {{ JSON.stringify($json.tags) }},\n  \"imageUrl\": \"{{ $json.imageUrl }}\",\n  \"publishedAt\": \"{{ $json.publishedAt }}\",\n  \"featured\": {{ $json.featured }}\n}\n"
       },
-      "name": "POST to Website API",
+      "id": "a8dca47d-7c1c-4310-b97a-5d50d7110521",
+      "name": "POST to API1",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 1,
       "position": [
-        700,
-        300
+        2496,
+        1568
       ],
       "credentials": {
-        "basicAuth": {
-          "id": "_placeholder_id",
-          "name": "Tech News Basic Auth",
-          "data": {
-            "user": "Newbythekingsmaker",
-            "password": "acf6b283-e353-4538-8a4f-fe7c67f338ad"
-          }
+        "httpBasicAuth": {
+          "id": "U1qvLkJLOJCGEybc",
+          "name": "Unnamed credential"
         }
       }
     }
   ],
+  "pinData": {},
   "connections": {
-    "Scheduled Trigger": {
+    "Split In Batches": {
       "main": [
         [
           {
-            "node": "Fetch RSS Feed",
+            "node": "POST to API1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Fetch RSS Feed": {
+    "Next Batch": {
       "main": [
         [
           {
-            "node": "Normalize Data",
+            "node": "Split In Batches",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Normalize Data": {
+    "Schedule Trigger1": {
       "main": [
         [
           {
-            "node": "POST to Website API",
+            "node": "Fetch RSS Feed1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch RSS Feed1": {
+      "main": [
+        [
+          {
+            "node": "Normalize Data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Data1": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST to API1": {
+      "main": [
+        [
+          {
+            "node": "Next Batch",
             "type": "main",
             "index": 0
           }
         ]
       ]
     }
-  }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "4643336a-18a0-40f4-8cf0-c6dd24086d3c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0e8bddc45ffc3b4904f15d1671fe2ee19dee27b95b60841be5d49510228b8004"
+  },
+  "id": "eWdqhnShnwzSu3RG",
+  "tags": []
 }
