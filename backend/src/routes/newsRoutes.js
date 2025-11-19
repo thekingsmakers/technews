@@ -4,15 +4,38 @@ import {
   getNewsBySlug,
   createNews,
   getNewsMeta,
-  getArchivedNews // Import the new function
+  getArchivedNews
 } from '../newsStore.js';
 
 const router = Router();
 
 router.get('/', (req, res) => {
-  const { category, tag, q } = req.query;
-  const news = getAllNews({ category, tag, q });
-  res.json(news);
+  // Extract filtering and pagination parameters from the query string
+  const { category, tag, q, page = 1, pageSize = 12 } = req.query;
+
+  try {
+    // Get all news items that match the filters
+    const allItems = getAllNews({ category, tag, q });
+
+    // Apply pagination to the filtered list
+    const pageNumber = parseInt(page, 10);
+    const size = parseInt(pageSize, 10);
+    const totalItems = allItems.length;
+    const totalPages = Math.ceil(totalItems / size);
+    const startIndex = (pageNumber - 1) * size;
+    const paginatedItems = allItems.slice(startIndex, startIndex + size);
+
+    // Return the paginated data in the expected format
+    res.json({
+      items: paginatedItems,
+      totalPages,
+      currentPage: pageNumber,
+      totalItems,
+    });
+  } catch (error) {
+    console.error('Failed to get news:', error);
+    res.status(500).json({ message: 'Error retrieving news feed.' });
+  }
 });
 
 router.get('/meta', (req, res) => {
@@ -36,8 +59,13 @@ router.get('/:slug', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const item = createNews(req.body);
-  res.status(201).json(item);
+  try {
+    const item = createNews(req.body);
+    res.status(201).json(item);
+  } catch (error) {
+    console.error('Failed to create news item:', error);
+    res.status(400).json({ message: 'Error creating news item.', details: error.message });
+  }
 });
 
 export default router;
