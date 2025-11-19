@@ -41,7 +41,6 @@ export default ({ mode }) => {
           changeOrigin: true,
           secure: false,
           ws: true,
-          rewrite: (path) => path.replace(/^\/api/, '')
         }
       },
       headers: {
@@ -57,7 +56,7 @@ export default ({ mode }) => {
       open: !isNetwork
     },
     define: {
-      'process.env': {}
+      'import.meta.env.VITE_API_BASE_URL': JSON.stringify(apiUrl),
     }
   });
 };
