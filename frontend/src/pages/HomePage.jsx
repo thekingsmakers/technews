@@ -3,9 +3,7 @@ import { Link } from 'react-router-dom';
 import NewsGrid from '../components/NewsGrid.jsx';
 import CategoryFilter from '../components/CategoryFilter.jsx';
 import TagFilter from '../components/TagFilter.jsx';
-import { API_BASE_URL } from '../config.js';
-
-const API_BASE = API_BASE_URL;
+import { API_URL } from '../config.js';
 
 export default function HomePage() {
   const [news, setNews] = useState([]);
@@ -29,7 +27,7 @@ export default function HomePage() {
         params.append('page', String(reset ? 1 : page));
         params.append('pageSize', String(pageSize));
 
-        const res = await fetch(`${API_BASE}/api/news?${params.toString()}`, {
+        const res = await fetch(`${API_URL}/news?${params.toString()}`, {
           signal: controller.signal
         });
         const data = await res.json();

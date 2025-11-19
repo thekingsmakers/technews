@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import NewsGrid from '../components/NewsGrid';
-import { API_BASE_URL as API_URL } from '../config';
+import { API_URL } from '../config';
 
 const ArchivePage = () => {
   const [archivedNews, setArchivedNews] = useState([]);

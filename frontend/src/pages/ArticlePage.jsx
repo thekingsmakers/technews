@@ -2,9 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import NewsCard from '../components/NewsCard.jsx';
-import { API_BASE_URL } from '../config.js';
+import { API_URL } from '../config.js';
 
-const API_BASE = API_BASE_URL;
 const getSiteOrigin = () =>
   (typeof window !== 'undefined' && window.location?.origin) || 'https://thekingsmaker.org';
 
@@ -22,7 +21,7 @@ export default function ArticlePage() {
     const fetchArticle = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/api/news/${slug}`, {
+        const res = await fetch(`${API_URL}/news/${slug}`, {
           signal: controller.signal
         });
         if (res.status === 404) {
@@ -68,7 +67,7 @@ export default function ArticlePage() {
         const params = new URLSearchParams();
         params.append('tag', article.tags[0]);
         params.append('pageSize', '4');
-        const res = await fetch(`${API_BASE}/api/news?${params.toString()}`, {
+        const res = await fetch(`${API_URL}/news?${params.toString()}`, {
           signal: controller.signal
         });
         const data = await res.json();

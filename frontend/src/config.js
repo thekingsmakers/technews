@@ -16,5 +16,6 @@ const API_BASE_URL = (() => {
   return normalizeBaseUrl(fromEnv || fallback);
 })();
 
-export { API_BASE_URL };
+const API_URL = `${API_BASE_URL}/api`;
 
+export { API_BASE_URL, API_URL };
