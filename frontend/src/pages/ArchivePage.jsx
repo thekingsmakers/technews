@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import NewsGrid from '../components/NewsGrid';
-import config from '../config';
+import { API_BASE_URL as API_URL } from '../config';
 
 const ArchivePage = () => {
   const [archivedNews, setArchivedNews] = useState([]);
@@ -11,7 +11,7 @@ const ArchivePage = () => {
   useEffect(() => {
     const fetchArchivedNews = async () => {
       try {
-        const response = await fetch(`${config.API_URL}/news/archive`);
+        const response = await fetch(`${API_URL}/news/archive`);
         if (!response.ok) {
           throw new Error('Network response was not ok');
         }
