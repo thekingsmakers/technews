@@ -44,11 +44,6 @@ router.get('/:slug', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const apiKey = req.header('x-api-key');
-  if (!apiKey || apiKey !== process.env.API_KEY) {
-    return res.status(401).json({ error: 'Invalid API key' });
-  }
-
   const { title, content } = req.body;
   if (!title || !content) {
     return res.status(400).json({ error: 'title and content are required' });

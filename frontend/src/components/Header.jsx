@@ -9,9 +9,6 @@ export default function Header({ onToggleTheme, theme }) {
       </Link>
       <nav className="nav">
         <Link to="/">Home</Link>
-        <Link to="/category/AI">AI</Link>
-        <Link to="/category/Cloud">Cloud</Link>
-        <Link to="/category/Security">Security</Link>
         <Link to="/archive">Archive</Link>
       </nav>
       <button className="theme-toggle" onClick={onToggleTheme}>

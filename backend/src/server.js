@@ -5,6 +5,7 @@ import os from 'os';
 import newsRoutes from './routes/newsRoutes.js';
 import { getAllNews } from './newsStore.js';
 import { buildRssFeed } from './rssFeed.js';
+import basicAuth from 'express-basic-auth';
 
 const app = express();
 
@@ -13,91 +14,24 @@ const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || '0.0.0.0';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || '';
-const FRONTEND_PORT = Number(process.env.FRONTEND_PORT || 6080);
-const AUTO_LAN_ORIGINS =
-  (process.env.AUTO_LAN_ORIGINS || 'true').toLowerCase() !== 'false';
 
 // Middleware
 app.use(express.json());
 app.set('trust proxy', 1); // respect Cloudflare / proxy IPs
 
-// CORS Configuration
-const parseOrigins = (value = '') =>
-  value
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+// Enable CORS for all origins
+app.use(cors());
 
-const normalizeOrigin = (value) => {
-  if (!value) return null;
-  try {
-    return new URL(value).origin;
-  } catch {
-    return value.replace(/\/+$/, '');
-  }
-};
+// Basic Authentication
+const users = {};
+users[process.env.API_USERNAME] = process.env.API_PASSWORD;
 
-const getLanOrigins = () => {
-  if (!AUTO_LAN_ORIGINS || NODE_ENV === 'production') return [];
-  const interfaces = os.networkInterfaces();
-  const urls = new Set();
-  Object.values(interfaces).forEach((entries = []) => {
-    entries.forEach((entry) => {
-      if (entry.family === 'IPv4' && !entry.internal && entry.address) {
-        urls.add(`http://${entry.address}:${FRONTEND_PORT}`);
-      }
-    });
-  });
-  return Array.from(urls);
-};
+const authMiddleware = basicAuth({
+  users,
+  challenge: true,
+  unauthorizedResponse: { error: 'Unauthorized' }
+});
 
-const configuredOrigins = [
-  ...parseOrigins(process.env.CORS_ORIGIN),
-  ...parseOrigins(FRONTEND_BASE_URL)
-].filter(Boolean);
-
-const fallbackOrigins = ['http://localhost:6080'];
-const lanOrigins = getLanOrigins();
-const allowedOriginsRaw = [
-  ...new Set([
-    ...(configuredOrigins.length ? configuredOrigins : fallbackOrigins),
-    ...lanOrigins
-  ])
-];
-const allowedOriginsNormalized = allowedOriginsRaw
-  .map(normalizeOrigin)
-  .filter(Boolean);
-
-const isOriginAllowed = (origin) => {
-  if (!origin) {
-    return NODE_ENV === 'development';
-  }
-  const normalized = normalizeOrigin(origin);
-  return (
-    allowedOriginsNormalized.includes('*') ||
-    allowedOriginsNormalized.includes(normalized)
-  );
-};
-
-// Enable CORS
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin && NODE_ENV === 'development') return callback(null, true);
-    
-    // Check if the origin is in the allowed list
-    if (isOriginAllowed(origin)) {
-      return callback(null, true);
-    }
-    
-    const msg = 'Not allowed by CORS';
-    console.warn(`CORS blocked request from: ${origin}`);
-    return callback(new Error(msg), false);
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-}));
 
 // Request logging middleware
 app.use((req, _res, next) => {
@@ -161,14 +95,14 @@ app.get('/api/request-info', (req, res) => {
 });
 
 // API Routes
-app.use('/api/news', newsRoutes);
+app.use('/api/news', authMiddleware, newsRoutes);
 
 // Sitemap
 app.get('/sitemap.xml', (_req, res) => {
   try {
     const baseUrl =
       FRONTEND_BASE_URL ||
-      (NODE_ENV === 'development' ? `http://localhost:${FRONTEND_PORT}` : '');
+      (NODE_ENV === 'development' ? `http://localhost:6080` : '');
     const items = getAllNews();
 
     const urls = [
@@ -193,7 +127,7 @@ app.get(['/rss.xml', '/feed.xml', '/api/rss'], (_req, res) => {
   try {
     const siteUrl =
       FRONTEND_BASE_URL ||
-      (NODE_ENV === 'development' ? `http://localhost:${FRONTEND_PORT}` : '');
+      (NODE_ENV === 'development' ? `http://localhost:6080` : '');
     const items = getAllNews();
     const rss = buildRssFeed({
       items,
@@ -236,11 +170,6 @@ const server = app.listen(PORT, HOST, () => {
   console.log(`\n🚀 Tech News API Server running in ${NODE_ENV} mode`);
   console.log(`→ Local:   http://localhost:${port}`);
   console.log(`→ Network: http://${address === '::' ? 'localhost' : address}:${port}`);
-  console.log(`→ CORS Allowed Origins: ${allowedOriginsRaw.join(', ')}`);
-  if (lanOrigins.length) {
-    console.log(`→ LAN Access URLs: ${lanOrigins.join(', ')}`);
-  }
-  console.log('');
 });
 
 // Handle unhandled promise rejections

@@ -1,154 +1,53 @@
 {
-  "name": "thekingsmaker-rss-to-news",
-  "active": false,
+  "name": "Tech News Updater",
   "nodes": [
     {
-      "parameters": {
-        "triggerTimes": {
-          "item": [
-            {
-              "mode": "everyX",
-              "value": 30,
-              "unit": "minutes"
-            }
-          ]
-        }
-      },
-      "id": "CronEvery30",
-      "name": "Every 30 minutes",
-      "type": "n8n-nodes-base.cron",
+      "parameters": {},
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
       "typeVersion": 1,
       "position": [
-        260,
-        -60
+        240,
+        300
       ]
     },
     {
       "parameters": {
-        "url": "https://api.thekingsmaker.org/api/health",
-        "responseFormat": "json",
-        "options": {
-          "timeout": 30
-        }
-      },
-      "id": "ApiHealth",
-      "name": "API init / health",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3.1,
-      "position": [
-        520,
-        -60
-      ]
-    },
-    {
-      "parameters": {
-        "url": "https://www.theverge.com/rss/index.xml",
-        "allowUnauthorizedCerts": false
-      },
-      "id": "RssFeed",
-      "name": "RSS Feed",
-      "type": "n8n-nodes-base.rssFeedRead",
-      "typeVersion": 1,
-      "position": [
-        760,
-        -60
-      ]
-    },
-    {
-      "parameters": {
-        "functionCode": "const CATEGORY_KEYWORDS = [\n  { category: 'AI', keywords: ['ai', 'artificial intelligence', 'machine learning', 'ml', 'gpt'] },\n  { category: 'Cloud', keywords: ['cloud', 'aws', 'azure', 'gcp', 'kubernetes', 'serverless', 'infrastructure'] },\n  { category: 'Security', keywords: ['security', 'breach', 'zero-day', 'encryption', 'vulnerability', 'ransomware'] },\n  { category: 'Automation', keywords: ['automation', 'workflow', 'n8n', 'pipeline', 'devops'] },\n  { category: 'Devices', keywords: ['chip', 'hardware', 'device', 'gadget', 'semiconductor'] }\n];\n\nconst stripHtml = (value = '') => value.replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim();\nconst truncate = (value = '', max = 280) => (value.length > max ? `${value.slice(0, max - 1).trim()}…` : value);\nconst slugify = (value = '') => {\n  const slug = value\n    .toLowerCase()\n    .replace(/[^a-z0-9]+/g, '-')\n    .replace(/(^-|-$)/g, '');\n  if (slug) return slug;\n  return `story-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;\n};\nconst extractImage = (value = '', fallback = null) => {\n  const match = value.match(/<img[^>]*src=[\"']([^\"']+)[\"']/i);\n  return match ? match[1] : fallback;\n};\nconst pickCategory = (entry) => {\n  const haystack = [entry.title, entry.contentSnippet, entry['content:encoded'], entry.summary]\n    .filter(Boolean)\n    .join(' ')\n    .toLowerCase();\n  for (const mapping of CATEGORY_KEYWORDS) {\n    if (mapping.keywords.some((keyword) => haystack.includes(keyword))) {\n      return mapping.category;\n    }\n  }\n  const [firstCategory] = entry.categories || [];\n  return firstCategory ? firstCategory.trim() : 'Tech Intel';\n};\nconst dedupe = (arr = []) => Array.from(new Set(arr.filter(Boolean)));\n\nreturn items.map((item) => {\n  const entry = item.json;\n  const title = entry.title || 'Untitled story';\n  const summary = truncate(stripHtml(entry.contentSnippet || entry.description || ''));\n  const category = pickCategory(entry);\n  const contentSource = entry['content:encoded'] || entry.content || entry.description || summary;\n  const link = entry.link || '';\n  const publishedAt = entry.isoDate || entry.pubDate || new Date().toISOString();\n  const imageUrl = entry.enclosure?.url || extractImage(contentSource, null);\n  const tags = dedupe([category, ...(entry.categories || []).map((tag) => tag.trim()), 'RSS']);\n\n  const markdown = [\n    `## Summary`,\n    '',\n    summary,\n    '',\n    `## Article`,\n    '',\n    stripHtml(contentSource),\n    '',\n    link ? `[Read the original source](${link})` : ''\n  ]\n    .filter(Boolean)\n    .join('\\n');\n\n  return {\n    json: {\n      title,\n      summary,\n      content: markdown,\n      source: entry.creator || 'RSS: The Verge',\n      category,\n      tags,\n      imageUrl,\n      featured: category === 'AI',\n      publishedAt,\n      slug: slugify(title)\n    }\n  };\n});"
-      },
-      "id": "Normalize",
-      "name": "Normalize RSS → Article",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 2,
-      "position": [
-        1020,
-        -60
-      ]
-    },
-    {
-      "parameters": {
-        "url": "https://api.thekingsmaker.org/api/news",
-        "responseFormat": "json",
+        "authentication": "basicAuth",
+        "httpMethod": "POST",
+        "url": "http://localhost:5000/api/news",
         "jsonParameters": true,
-        "sendBody": true,
-        "bodyParametersJson": "={{$json}}",
-        "headerParametersUi": {
-          "parameter": [
-            {
-              "name": "x-api-key",
-              "value": "REPLACE_WITH_API_KEY"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "options": {
-          "timeout": 60
-        }
+        "options": {},
+        "bodyParametersJson": "{\n  \"title\": \"{{$json[\"title\"]}}\",\n  \"summary\": \"{{$json[\"summary\"]}}\",\n  \"body\": \"{{$json[\"body\"]}}\",\n  \"url\": \"{{$json[\"url\"]}}\"\n}"
       },
-      "id": "Publish",
-      "name": "Publish to TheKingsmaker",
+      "name": "Update News",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3.1,
+      "typeVersion": 1,
       "position": [
-        1280,
-        -60
-      ]
+        460,
+        300
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "1",
+          "name": "Tech News API"
+        }
+      }
     }
   ],
   "connections": {
-    "Every 30 minutes": {
+    "Start": {
       "main": [
         [
           {
-            "node": "API init / health",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "API init / health": {
-      "main": [
-        [
-          {
-            "node": "RSS Feed",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "RSS Feed": {
-      "main": [
-        [
-          {
-            "node": "Normalize RSS → Article",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Normalize RSS → Article": {
-      "main": [
-        [
-          {
-            "node": "Publish to TheKingsmaker",
-            "type": "main",
-            "index": 0
+            "node": "Update News",
+            "type": "main"
           }
         ]
       ]
     }
   },
-  "settings": {
-    "timezone": "UTC"
-  },
-  "versionId": "thekingsmaker-rss-to-news"
+  "active": false,
+  "settings": {},
+  "id": "1"
 }
-

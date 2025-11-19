@@ -4,8 +4,8 @@ import Footer from './Footer.jsx';
 
 export default function Layout({ children }) {
   const [theme, setTheme] = useState(() => {
-    if (typeof window === 'undefined') return 'dark';
-    return localStorage.getItem('theme') || 'dark';
+    if (typeof window === 'undefined') return 'light';
+    return localStorage.getItem('theme') || 'light';
   });
 
   useEffect(() => {
