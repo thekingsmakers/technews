@@ -1,16 +1,1 @@
-[
-  {
-    "id": "1",
-    "title": "Nvidia Unveils Next-Gen AI GPU",
-    "slug": "nvidia-next-gen-ai-gpu",
-    "summary": "A massive performance leap for deep learning and LLM workloads.",
-    "content": "Full article content goes here...",
-    "source": "Official Announcement",
-    "category": "AI & Machine Learning",
-    "tags": ["AI", "GPU", "Nvidia"],
-    "imageUrl": "https://source.unsplash.com/featured/?gpu,technology",
-    "publishedAt": "2025-11-18T09:00:00.000Z",
-    "updatedAt": "2025-11-18T09:00:00.000Z",
-    "featured": true
-  }
-]
+[]
