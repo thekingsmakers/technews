@@ -1,0 +1,16 @@
+tunnel: your-tunnel-id
+credentials-file: ./cloudflared/credentials.json
+
+# This is a basic configuration that forwards all traffic to your backend
+# No DNS records are created automatically with this config
+# You'll need to manually create DNS records pointing to your tunnel
+
+# HTTP to HTTPS redirect
+ingress:
+  - service: http_status:301
+    originRequest:
+      http2httpOriginPort: 80
+  - service: https://localhost:8000
+    originRequest:
+      noTLSVerify: true
+  - service: http_status:404
