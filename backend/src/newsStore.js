@@ -6,31 +6,32 @@ import crypto from 'crypto';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_PATH = path.join(__dirname, '..', 'data', 'news.json');
+const ARCHIVE_PATH = path.join(__dirname, '..', 'data', 'news_archive.json');
 
-function ensureDataFile() {
-  const dir = path.dirname(DATA_PATH);
+function ensureDataFile(filePath) {
+  const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  if (!fs.existsSync(DATA_PATH)) {
-    fs.writeFileSync(DATA_PATH, '[]', 'utf-8');
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, '[]', 'utf-8');
   }
 }
 
-function readNews() {
+function readNews(filePath = DATA_PATH) {
   try {
-    ensureDataFile();
-    const raw = fs.readFileSync(DATA_PATH, 'utf-8');
+    ensureDataFile(filePath);
+    const raw = fs.readFileSync(filePath, 'utf-8');
     return JSON.parse(raw || '[]');
   } catch (error) {
-    console.error('Failed to read news store:', error);
+    console.error(`Failed to read news from ${filePath}:`, error);
     return [];
   }
 }
 
-function writeNews(news) {
-  ensureDataFile();
-  fs.writeFileSync(DATA_PATH, JSON.stringify(news, null, 2), 'utf-8');
+function writeNews(news, filePath = DATA_PATH) {
+  ensureDataFile(filePath);
+  fs.writeFileSync(filePath, JSON.stringify(news, null, 2), 'utf-8');
 }
 
 const sanitizeString = (value = '') =>
@@ -54,6 +55,23 @@ const slugify = (value) => {
 function buildSlug({ slug, title }) {
   const base = slugify(slug || title);
   return base || crypto.randomUUID();
+}
+
+export function getArchivedNews() {
+  return readNews(ARCHIVE_PATH);
+}
+
+function archiveOldNews() {
+  const news = readNews();
+  if (news.length > 200) {
+    const sortedNews = news.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+    const latestNews = sortedNews.slice(0, 200);
+    const oldNews = sortedNews.slice(200);
+    const archive = readNews(ARCHIVE_PATH);
+    const updatedArchive = [...archive, ...oldNews];
+    writeNews(latestNews);
+    writeNews(updatedArchive, ARCHIVE_PATH);
+  }
 }
 
 export function getAllNews({ category, tag, q } = {}) {
@@ -129,7 +147,7 @@ export function createNews(payload) {
   const summary = sanitizeString(payload.summary || '');
   const content = sanitizeString(payload.content || '');
   const category = sanitizeString(payload.category || 'General');
-  const source = sanitizeString(payload.source || 'n8n');
+  const source = sanitizeString(payload.source || '');
   const imageUrl = sanitizeString(payload.imageUrl || '');
   const existingIndex = news.findIndex((n) => n.slug === slug);
 
@@ -153,7 +171,7 @@ export function createNews(payload) {
     imageUrl: imageUrl || null,
     publishedAt: payload.publishedAt || baseItem.publishedAt || now,
     updatedAt: now,
-    featured: Boolean(payload.featured)
+    featured: true
   };
 
   if (existingIndex >= 0) {
@@ -163,5 +181,6 @@ export function createNews(payload) {
   }
 
   writeNews(news);
+  archiveOldNews(); // Call the archiving function after creating news
   return item;
 }

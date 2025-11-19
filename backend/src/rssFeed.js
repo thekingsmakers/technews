@@ -24,6 +24,10 @@ export function buildRssFeed({ items = [], siteUrl, feedUrl, title, description 
         .filter(Boolean)
         .map((cat) => `<category>${escape(cat)}</category>`)
         .join('');
+      const imageTag = item.imageUrl ? `
+  <enclosure url="${escape(item.imageUrl)}" type="image/jpeg" />` : '';
+      const mediaContent = item.imageUrl ? `
+  <media:content url="${escape(item.imageUrl)}" medium="image" type="image/jpeg" />` : '';
 
       return `<item>
   <title>${escape(item.title)}</title>
@@ -31,13 +35,13 @@ export function buildRssFeed({ items = [], siteUrl, feedUrl, title, description 
   <guid isPermaLink="true">${escape(link)}</guid>
   <description>${escape(item.summary || item.content || '')}</description>
   <pubDate>${new Date(item.publishedAt || item.createdAt || now).toUTCString()}</pubDate>
-  ${categories}
+  ${categories}${imageTag}${mediaContent}
 </item>`;
     })
     .join('');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
   <channel>
     <title>${escape(feedTitle)}</title>
     <link>${escape(fallbackSite)}</link>
@@ -50,4 +54,3 @@ export function buildRssFeed({ items = [], siteUrl, feedUrl, title, description 
   </channel>
 </rss>`;
 }
-

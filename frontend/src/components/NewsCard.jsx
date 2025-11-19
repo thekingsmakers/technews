@@ -1,73 +1,39 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
-export default function NewsCard({ article, layout = 'standard' }) {
-  const navigate = useNavigate();
-  const date = new Date(article.publishedAt);
-  const formatted = date.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+const NewsCard = ({ article }) => {
+  if (!article) {
+    return null;
+  }
 
-  const category = article.category || 'General';
-  const layoutClass = `news-card ${article.featured ? 'featured' : ''} news-card-${layout}`;
-
-  const goToArticle = () => navigate(`/article/${article.slug}`);
-  const handleKeyDown = (event) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      goToArticle();
-    }
-  };
-  const goToCategory = (event, value) => {
-    event.stopPropagation();
-    navigate(`/category/${encodeURIComponent(value)}`);
-  };
+  const { title, summary, slug, category, tags, source, publishedAt, imageUrl } = article;
 
   return (
-    <article
-      className={layoutClass}
-      role="button"
-      onClick={goToArticle}
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
-      aria-label={`Read article ${article.title}`}
-    >
-      {article.imageUrl && (
-        <div className="news-card-image">
-          <img src={article.imageUrl} alt={article.title} loading="lazy" />
+    <div className="bg-white rounded-lg shadow-md overflow-hidden transform hover:scale-105 transition-transform duration-300">
+      <Link to={`/article/${slug}`}>
+        {imageUrl && <img src={imageUrl} alt={title} className="w-full h-48 object-cover" />}
+      </Link>
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm font-semibold text-indigo-600">{category}</span>
+          {source && <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">{source}</span>}
         </div>
-      )}
-      <div className="news-card-body">
-        <div className="news-card-meta">
-          <button
-            type="button"
-            className="category-link"
-            onClick={(event) => goToCategory(event, category)}
-          >
-            {category}
-          </button>
-          <span className="date">{formatted}</span>
-        </div>
-        <h2>{article.title}</h2>
-        <p className="summary">{article.summary}</p>
-        <div className="tags">
-          {(article.tags || []).map((tag) => (
-            <button
-              type="button"
-              key={tag}
-              className="tag"
-              onClick={(event) => goToCategory(event, tag)}
-            >
-              #{tag}
-            </button>
+        <h2 className="text-2xl font-bold mb-2 h-24 overflow-hidden">
+          <Link to={`/article/${slug}`}>{title}</Link>
+        </h2>
+        <p className="text-gray-700 mb-4 h-28 overflow-hidden">{summary}</p>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {tags && tags.map(tag => (
+            <span key={tag} className="bg-gray-200 text-gray-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+              {tag}
+            </span>
           ))}
         </div>
-        <div className="source">Source: {article.source}</div>
+        <div className="text-sm text-gray-500">
+          <span>{new Date(publishedAt).toLocaleDateString()}</span>
+        </div>
       </div>
-    </article>
+    </div>
   );
-}
+};
+
+export default NewsCard;

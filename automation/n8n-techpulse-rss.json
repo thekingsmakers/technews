@@ -12,7 +12,7 @@
       "typeVersion": 1,
       "position": [
         2304,
-        1568
+        1660
       ]
     },
     {
@@ -23,7 +23,7 @@
       "typeVersion": 1,
       "position": [
         2704,
-        1568
+        1660
       ]
     },
     {
@@ -35,11 +35,11 @@
         }
       },
       "id": "916aebfa-1af4-4be1-9841-0b2c7c1adb38",
-      "name": "Schedule Trigger1",
+      "name": "Schedule Trigger",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1,
       "position": [
-        1696,
+        1520,
         1568
       ]
     },
@@ -49,25 +49,25 @@
         "options": {}
       },
       "id": "562cf68c-fe4a-408b-9867-96d09ce88763",
-      "name": "Fetch RSS Feed1",
+      "name": "Fetch Computer Weekly",
       "type": "n8n-nodes-base.rssFeedRead",
       "typeVersion": 1,
       "position": [
-        1904,
-        1568
+        1720,
+        1460
       ]
     },
     {
       "parameters": {
-        "functionCode": "const items = $input.all();\n\nreturn items.map(item => {\n  const title = item.json.title || \"Untitled\";\n\n  const slug = title\n    .toLowerCase()\n    .replace(/[^a-z0-9]+/g, '-')\n    .replace(/(^-|-$)/g, '');\n\n  // Clean & trim big HTML content\n  const rawContent = item.json.content || 'No content available';\n  const cleaned = rawContent\n    .replace(/<[^>]*>/g, '')   // remove HTML\n    .replace(/\\s+/g, ' ')      // collapse whitespace\n    .trim()\n    .substring(0, 5000);        // prevent HUGE payload\n\n  return {\n    json: {\n      title,\n      slug,\n      summary: (item.json.contentSnippet || cleaned.substring(0, 250)),\n      content: cleaned,\n      category: \"IT News\",\n      tags: [\"news\", \"computer weekly\"],\n      imageUrl: \"\",\n      publishedAt: item.json.pubDate || null,\n      featured: false\n    }\n  };\n});"
+        "functionCode": "const items = $input.all();\nconst regex = /<img src=\"([^\"]+)\"/;/\n\nreturn items.map(item => {\n  const title = item.json.title || \"Untitled\";\n  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');\n  const rawContent = item.json.content || 'No content available';\n  const cleaned = rawContent.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().substring(0, 5000);\n  const imageMatch = rawContent.match(regex);\n\n  return {\n    json: {\n      title,\n      slug,\n      summary: (item.json.contentSnippet || cleaned.substring(0, 250)),\n      content: cleaned,\n      category: \"IT News\",\n      tags: [\"news\", \"computer weekly\"],\n      imageUrl: imageMatch ? imageMatch[1] : null,\n      publishedAt: item.json.pubDate || null,\n      featured: false,\n      source: \"Computer Weekly\"\n    }\n  };\n});"
       },
       "id": "922dbb72-ee1f-4de2-a615-a3e6806d3309",
-      "name": "Normalize Data1",
+      "name": "Normalize Computer Weekly",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
       "position": [
-        2096,
-        1568
+        1920,
+        1460
       ]
     },
     {
@@ -79,15 +79,15 @@
         "options": {
           "timeout": 30000
         },
-        "bodyParametersJson": "={\n  \"title\": \"{{ $json.title }}\",\n  \"content\": \"{{ $json.content }}\",\n  \"slug\": \"{{ $json.slug }}\",\n  \"summary\": \"{{ $json.summary }}\",\n  \"category\": \"{{ $json.category }}\",\n  \"tags\": {{ JSON.stringify($json.tags) }},\n  \"imageUrl\": \"{{ $json.imageUrl }}\",\n  \"publishedAt\": \"{{ $json.publishedAt }}\",\n  \"featured\": {{ $json.featured }}\n}\n"
+        "bodyParametersJson": "={\n  \"title\": \"{{ $json.title }}\",\n  \"content\": \"{{ $json.content }}\",\n  \"slug\": \"{{ $json.slug }}\",\n  \"summary\": \"{{ $json.summary }}\",\n  \"category\": \"{{ $json.category }}\",\n  \"tags\": {{ JSON.stringify($json.tags) }},\n  \"imageUrl\": \"{{ $json.imageUrl }}\",\n  \"publishedAt\": \"{{ $json.publishedAt }}\",\n  \"featured\": {{ $json.featured }},\n  \"source\": \"{{ $json.source }}\"\n}"
       },
       "id": "a8dca47d-7c1c-4310-b97a-5d50d7110521",
-      "name": "POST to API1",
+      "name": "POST to API",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 1,
       "position": [
         2496,
-        1568
+        1660
       ],
       "credentials": {
         "httpBasicAuth": {
@@ -95,6 +95,46 @@
           "name": "Unnamed credential"
         }
       }
+    },
+    {
+      "parameters": {
+        "url": "http://feeds.arstechnica.com/arstechnica/index/",
+        "options": {}
+      },
+      "id": "3e6f5g4b-3c2d-4e3f-9d8c-7e6f5g4b3c2d",
+      "name": "Fetch Ars Technica",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [
+        1720,
+        1660
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const items = $input.all();\nconst regex = /<img src=\"([^\"]+)\"/;/\n\nreturn items.map(item => {\n  const title = item.json.title || \"Untitled\";\n  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');\n  const rawContent = item.json.content || 'No content available';\n  const cleaned = rawContent.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().substring(0, 5000);\n  const imageMatch = rawContent.match(regex);\n\n  return {\n    json: {\n      title,\n      slug,\n      summary: (item.json.contentSnippet || cleaned.substring(0, 250)),\n      content: cleaned,\n      category: \"Technology\",\n      tags: [\"news\", \"ars technica\"],\n      imageUrl: imageMatch ? imageMatch[1] : null,\n      publishedAt: item.json.pubDate || null,\n      featured: false,\n      source: \"Ars Technica\"\n    }\n  };\n});"
+      },
+      "id": "f9b0c1d2-4e3f-5g2b-9d8c-7e6f5g4b3c2d",
+      "name": "Normalize Ars Technica",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        1660
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "a0c1d2e3-5f4g-6h3c-ad9d-8f7g6h5c4d3e",
+      "name": "Merge Feeds",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        2120,
+        1560
+      ]
     }
   ],
   "pinData": {},
@@ -103,7 +143,7 @@
       "main": [
         [
           {
-            "node": "POST to API1",
+            "node": "POST to API",
             "type": "main",
             "index": 0
           }
@@ -121,44 +161,82 @@
         ]
       ]
     },
-    "Schedule Trigger1": {
+    "Schedule Trigger": {
       "main": [
         [
           {
-            "node": "Fetch RSS Feed1",
+            "node": "Fetch Computer Weekly",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Ars Technica",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Fetch RSS Feed1": {
+    "Fetch Computer Weekly": {
       "main": [
         [
           {
-            "node": "Normalize Data1",
+            "node": "Normalize Computer Weekly",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Normalize Data1": {
+    "Normalize Computer Weekly": {
       "main": [
         [
           {
-            "node": "Split In Batches",
+            "node": "Merge Feeds",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "POST to API1": {
+    "POST to API": {
       "main": [
         [
           {
             "node": "Next Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Ars Technica": {
+      "main": [
+        [
+          {
+            "node": "Normalize Ars Technica",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Ars Technica": {
+      "main": [
+        [
+          {
+            "node": "Merge Feeds",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Feeds": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
             "type": "main",
             "index": 0
           }
