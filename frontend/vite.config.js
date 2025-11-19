@@ -1,59 +1,36 @@
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default ({ mode }) => {
-  // Load environment variables
-  const env = loadEnv(mode, process.cwd(), '');
-  
-  // Get configuration from environment variables or use defaults
-  const port = parseInt(env.VITE_PORT || '6080', 10);
-  const apiPort = env.VITE_API_PORT || '5000';
-  const host = env.VITE_HOST || '0.0.0.0';
-  const isNetwork = env.VITE_NETWORK === 'true';
+// Hardcoded configuration for simplicity and reliability in a local environment.
+const VITE_PORT = 6080;
+const API_PORT = 5000;
+const API_URL = `http://localhost:${API_PORT}`;
 
-  // URL for the Vite dev server's proxy to use when communicating within the container network
-  const proxyTargetUrl = `http://${env.VITE_API_HOST || 'backend'}:${apiPort}`;
-  
-  // URL for the browser to use when making API calls from the client-side
-  const browserApiUrl = `http://localhost:${apiPort}`;
-
-  console.log('\n🚀 Frontend Configuration:');
-  console.log(`→ Mode: ${mode}`);
-  console.log(`→ Port: ${port}`);
-  console.log(`→ Proxy Target: ${proxyTargetUrl}`);
-  console.log(`→ Browser API URL: ${browserApiUrl}`);
-  console.log(`→ Network Access: ${isNetwork ? 'Enabled' : 'Disabled'}\n`);
-
-  return defineConfig({
-    plugins: [react()],
-    server: {
-      host,
-      port,
-      strictPort: true,
-      open: !isNetwork, // Only open browser in local mode
-      cors: true,
-      proxy: {
-        '/api': {
-          target: proxyTargetUrl,
-          changeOrigin: true,
-          secure: false,
-          ws: true,
-        }
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    // Listen on all network interfaces to allow access via IP address.
+    host: '0.0.0.0',
+    port: VITE_PORT,
+    strictPort: true,
+    // Proxy API requests (/api) to the backend server.
+    proxy: {
+      '/api': {
+        target: API_URL,
+        changeOrigin: true, // Recommended for this setup
+        secure: false,      // Backend is http, not https
       },
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-        'Access-Control-Allow-Headers': 'X-Requested-With, Content-Type, Authorization'
-      }
     },
-    preview: {
-      host,
-      port,
-      strictPort: true,
-      open: !isNetwork
-    },
-    define: {
-      'import.meta.env.VITE_API_BASE_URL': JSON.stringify(browserApiUrl),
-    }
-  });
-};
+  },
+  // Define a global variable for the frontend code.
+  // An empty string makes the browser use relative paths for API calls (e.g., /api/news),
+  // which are then correctly intercepted by the proxy above.
+  define: {
+    'import.meta.env.VITE_API_BASE_URL': JSON.stringify(''),
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: VITE_PORT,
+  }
+});
