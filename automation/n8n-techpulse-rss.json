@@ -1,0 +1,106 @@
+
+{
+  "name": "RSS Ingest for Computer Weekly",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": "cron",
+        "cronTime": "*/30 * * * *"
+      },
+      "name": "Scheduled Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.computerweekly.com/rss/Latest-IT-news.xml",
+        "responseFormat": "XML",
+        "options": {}
+      },
+      "name": "Fetch RSS Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const items = $items(\"Fetch RSS Feed\")[0].json.rss.channel[0].item;\n\nconst normalizedItems = items.map(feedItem => {\n  const title = feedItem.title[0];\n  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');\n\n  return {\n    json: {\n      title: title,\n      slug: slug,\n      summary: feedItem.description[0],\n      content: feedItem[\"content:encoded\"] ? feedItem[\"content:encoded\"][0] : feedItem.description[0],\n      category: \"IT News\",\n      tags: [\"news\", \"computer weekly\"],\n      imageUrl: (feedItem[\"media:content\"] && feedItem[\"media:content\"][0] && feedItem[\"media:content\"][0].$) ? feedItem[\"media:content\"][0].$.url : \"\",\n      publishedAt: feedItem.pubDate[0],\n      featured: false\n    }\n  };\n});\n\nreturn normalizedItems;"
+      },
+      "name": "Normalize Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.thekingsmaker.org/api/news",
+        "authentication": "headerAuth",
+        "httpHeaderAuth": "={{$credentials.techNewsApiKey.name}}",
+        "options": {
+          "body": "={{$node[\"Normalize Data\"].json}}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "name": "POST to Website API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "={{$credentials.techNewsApiKey.id}}",
+          "name": "Tech News API Key"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Scheduled Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch RSS Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch RSS Feed": {
+      "main": [
+        [
+          {
+            "node": "Normalize Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Data": {
+      "main": [
+        [
+          {
+            "node": "POST to Website API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
