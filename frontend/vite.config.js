@@ -7,9 +7,12 @@ export default ({ mode }) => {
   
   // Get configuration from environment variables or use defaults
   const port = parseInt(env.VITE_PORT || '6080', 10);
-  const apiUrl = env.VITE_API_BASE_URL || 'http://localhost:5000';
-  const host = '0.0.0.0'; // Listen on all network interfaces
+  const apiHost = env.VITE_API_HOST || 'localhost';
+  const apiPort = env.VITE_API_PORT || '5000';
+  const host = env.VITE_HOST || '0.0.0.0';
   const isNetwork = env.VITE_NETWORK === 'true';
+
+  const apiUrl = `http://${apiHost}:${apiPort}`;
 
   console.log('\n🚀 Frontend Configuration:');
   console.log(`→ Mode: ${mode}`);
@@ -25,16 +28,6 @@ export default ({ mode }) => {
       strictPort: true,
       open: !isNetwork, // Only open browser in local mode
       cors: true,
-      hmr: {
-        clientPort: isNetwork ? 80 : 24678, // Use port 80 for network access
-        protocol: 'ws',
-        host: isNetwork ? host : 'localhost',
-        port: 24678
-      },
-      watch: {
-        usePolling: isNetwork, // Enable polling in network mode
-        interval: 100
-      },
       proxy: {
         '/api': {
           target: apiUrl,
