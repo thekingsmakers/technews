@@ -16,7 +16,8 @@ const ArchivePage = () => {
           throw new Error('Network response was not ok');
         }
         const data = await response.json();
-        setArchivedNews(data);
+        // Correctly extract the 'items' array from the response
+        setArchivedNews(data.items || []); 
       } catch (error) {
         setError(error.message);
       } finally {
