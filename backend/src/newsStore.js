@@ -111,6 +111,43 @@ export function getArchivedNews() {
   return readNews(ARCHIVE_PATH);
 }
 
+export function autoArchiveNews() {
+  const config = getArchiveConfig();
+  if (!config.archiveEnabled) {
+    console.log('Auto-archiving is disabled');
+    return;
+  }
+
+  const now = Date.now();
+  const timeSinceLastRun = config.lastArchiveRun ? now - new Date(config.lastArchiveRun).getTime() : Infinity;
+
+  if (timeSinceLastRun < config.autoArchiveInterval) {
+    console.log(`Auto-archiving not due yet. Next run in ${Math.ceil((config.autoArchiveInterval - timeSinceLastRun) / (60 * 60 * 1000))} hours`);
+    return;
+  }
+
+  const news = readNews();
+  if (news.length <= config.maxActiveArticles) {
+    console.log(`No archiving needed. Current articles: ${news.length}, limit: ${config.maxActiveArticles}`);
+    return;
+  }
+
+  console.log(`Starting auto-archiving process. Current articles: ${news.length}`);
+
+  const sortedNews = news.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+  const latestNews = sortedNews.slice(0, config.maxActiveArticles);
+  const oldNews = sortedNews.slice(config.maxActiveArticles);
+
+  const archive = readNews(ARCHIVE_PATH);
+  const updatedArchive = [...archive, ...oldNews];
+
+  writeNews(latestNews);
+  writeNews(updatedArchive, ARCHIVE_PATH);
+  setArchiveConfig({ lastArchiveRun: new Date().toISOString() });
+
+  console.log(`Auto-archiving completed. Archived ${oldNews.length} articles. Active articles remaining: ${latestNews.length}`);
+}
+
 function autoArchiveNews() {
   const config = getArchiveConfig();
   if (!config.archiveEnabled) {
