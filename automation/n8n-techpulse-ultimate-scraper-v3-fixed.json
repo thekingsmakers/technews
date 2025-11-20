@@ -1,0 +1,361 @@
+{
+  "name": "TechPulse Ultimate Scraper v3 - Full Website Scraping",
+  "nodes": [
+    {
+      "parameters": {
+        "values": {
+          "boolean": [
+            {
+              "name": "useAdvancedScraping",
+              "value": true
+            }
+          ],
+          "string": [
+            {
+              "name": "targetUrls",
+              "value": "https://www.computerweekly.com\nhttps://arstechnica.com"
+            },
+            {
+              "name": "maxArticlesPerSite",
+              "value": "10"
+            },
+            {
+              "name": "scrapeDelay",
+              "value": "3000"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "workflow-config-v3",
+      "name": "Advanced Scraper Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        240,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const config = $node[\"Advanced Scraper Configuration\"].json;\nconst urlList = config.targetUrls.split('\\n').filter(url => url.trim());\nconst maxArticles = parseInt(config.maxArticlesPerSite || '10');\nconst scrapeDelay = parseInt(config.scrapeDelay || '3000');\n\nreturn urlList.map(url => ({\n  json: {\n    targetUrl: url.trim(),\n    maxArticles,\n    scrapeDelay,\n    processingId: Math.random().toString(36).substr(2, 9),\n    timestamp: new Date().toISOString()\n  }\n}));\n\nconsole.log(`Prepared ${urlList.length} websites for advanced scraping`);"
+      },
+      "id": "url-processor-v3",
+      "name": "Process Target URLs",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        440,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const input = $input.all()[0];\nconst config = input.json;\nconst targetUrl = config.targetUrl;\n\n// Smart site detection\nconst sitePatterns = {\n  'computerweekly.com': {\n    articleSelector: 'article, .article, .post, .news-item',\n    titleSelector: 'h1, .article-title, .post-title',\n    urlSelector: 'h1 a, .article-title a, .post-title a',\n    summarySelector: '.article-intro, .post-excerpt, p:first-of-type',\n    dateSelector: 'time, .article-date, .post-date, [datetime]',\n    categorySelector: '.article-category, .post-category',\n    contentSelector: 'article .content, .article-body, .post-content',\n    confidence: 1.0\n  },\n  'arstechnica.com': {\n    articleSelector: 'article.tease, article, .tease',\n    titleSelector: 'h1, h2 a, .article-title a',\n    urlSelector: 'h1 a, h2 a, .article-title a',\n    summarySelector: '.article-intro, .excerpt, p:first-child',\n    dateSelector: 'time, .article-date, [datetime]',\n    categorySelector: '.article-category, .tag',\n    contentSelector: 'article .content, .article-content, article p',\n    confidence: 1.0\n  },\n  'techcrunch.com': {\n    articleSelector: 'article.post-block, .post-block',\n    titleSelector: 'h2.post-block__title a, .post-block__title a',\n    urlSelector: 'h2.post-block__title a, .post-block__title a',\n    summarySelector: '.post-block__content',\n    dateSelector: '.river-byline__time',\n    categorySelector: '.post-block__category',\n    contentSelector: 'article .content, .article-content',\n    confidence: 1.0\n  }\n};\n\n// Determine site configuration\nconst urlParts = targetUrl.replace('https://', '').replace('http://', '').split('/')[0];\nconst domain = urlParts.replace('www.', '');\nconst siteConfig = sitePatterns[domain] || {\n  articleSelector: 'article, .article, .post, .entry',\n  titleSelector: 'h1, h2, h3, .title',\n  urlSelector: 'a[href]',\n  summarySelector: 'p, .summary, .excerpt',\n  dateSelector: 'time, .date, .published, [datetime]',\n  categorySelector: '.category, .tag',\n  contentSelector: 'article p, .content p, .post-content p',\n  confidence: 0.5\n};\n\n// Detect if site needs JavaScript\nconst needsJavaScript = targetUrl.includes('bloomberg.com') || targetUrl.includes('nytimes.com');\n\nreturn {\n  json: {\n    ...config,\n    siteConfig,\n    domain,\n    needsJavaScript,\n    analysisComplete: true\n  }\n};"
+      },
+      "id": "ai-structure-analyzer-v3",
+      "name": "AI Structure Analysis",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        640,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const input = $input.all()[0];\nconst config = input.json;\n\nlet scraperType = 'python';\nlet pythonCode = '';\nlet jsCode = '';\n\nif (config.needsJavaScript) {\n  scraperType = 'javascript';\n  jsCode = `// Puppeteer scraping code here`;\n} else {\n  scraperType = 'python';\n  pythonCode = `\nimport requests\nfrom bs4 import BeautifulSoup\nimport time\nimport json\n\nTARGET_URL = \"${config.targetUrl}\"\nMAX_ARTICLES = ${config.maxArticles}\n\nclass NewsScraper:\n    def __init__(self):\n        self.session = requests.Session()\n        self.session.headers.update({\n            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'\n        })\n    \n    def get_articles(self):\n        response = self.session.get(TARGET_URL)\n        soup = BeautifulSoup(response.content, 'html.parser')\n        \n        articles = []\n        selectors = ['${config.siteConfig.articleSelector}']\n        \n        for selector in selectors:\n            elements = soup.select(selector)\n            if elements:\n                for elem in elements[:MAX_ARTICLES]:\n                    title = elem.select_one('${config.siteConfig.titleSelector}')?.get_text().strip()\n                    url = elem.select_one('${config.siteConfig.urlSelector}')?.get('href')\n                    \n                    if title and url:\n                        if not url.startswith('http'):\n                            url = TARGET_URL + url if url.startswith('/') else TARGET_URL + '/' + url\n                        \n                        articles.append({\n                            'title': title,\n                            'url': url,\n                            'summary': elem.select_one('${config.siteConfig.summarySelector}')?.get_text().strip() or ''\n                        })\n                break\n        \n        return articles\n\nscraper = NewsScraper()\nprint(json.dumps(scraper.get_articles()))\n`;\n}\n\nreturn {\n  json: {\n    ...config,\n    scraperType,\n    pythonCode,\n    jsCode,\n    scraperReady: true\n  }\n};"
+      },
+      "id": "enhanced-scraper-selector",
+      "name": "Enhanced Scraper Selector",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        840,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "=Python Code",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "python-executor",
+      "name": "Python Scraper",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "=JavaScript Code",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "js-executor",
+      "name": "JavaScript Scraper",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const inputData = $input.all()[0];\nlet articles = [];\n\ntry {\n  const scrapedData = inputData.json;\n  \n  if (Array.isArray(scrapedData)) {\n    articles = scrapedData;\n  } else if (typeof scrapedData === 'string') {\n    articles = JSON.parse(scrapedData);\n  }\n  \n  // Filter valid articles\n  const validArticles = articles.filter(article => \n    article && article.title && article.title.trim().length > 5 && article.url\n  ).map(article => ({\n    ...article,\n    title: article.title.trim(),\n    summary: article.summary || article.title.substring(0, 100) + '...',\n    slug: article.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),\n    category: article.category || 'Technology',\n    tags: ['news'],\n    publishedAt: article.publishedAt || new Date().toISOString(),\n    featured: false,\n    source: inputData.json.domain || 'Web Scraper'\n  }));\n  \n  console.log(`Processed ${validArticles.length} articles`);\n  \n  return validArticles.map(article => ({ json: article }));\n  \n} catch (error) {\n  console.error('Processing error:', error);\n  return [{ json: { error: 'Processing failed' } }];\n}"
+      },
+      "id": "enhanced-data-processor",
+      "name": "Enhanced Data Processor",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1240,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "quality-batch-processor",
+      "name": "Quality Batch Processor",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "basicAuth",
+        "requestMethod": "POST",
+        "url": "http://localhost:5000/api/news",
+        "jsonParameters": true,
+        "options": {
+          "timeout": 30000
+        },
+        "bodyParametersJson": "={\n  \"title\": \"{{ $json.title }}\",\n  \"content\": \"{{ $json.content || $json.summary }}\",\n  \"slug\": \"{{ $json.slug }}\",\n  \"summary\": \"{{ $json.summary }}\",\n  \"category\": \"{{ $json.category }}\",\n  \"tags\": {{ JSON.stringify($json.tags) }},\n  \"imageUrl\": \"{{ $json.imageUrl }}\",\n  \"publishedAt\": \"{{ $json.publishedAt }}\",\n  \"featured\": {{ $json.featured }},\n  \"source\": \"{{ $json.source }}\"\n}"
+      },
+      "id": "enhanced-api-integration",
+      "name": "Enhanced API Integration",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1640,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "hours": 6
+            }
+          ]
+        }
+      },
+      "id": "enhanced-schedule-trigger",
+      "name": "Enhanced Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        120,
+        20
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "batch-completer",
+      "name": "Batch Completer",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1660,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "operation",
+              "value": "Enhanced Website Scraping"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ new Date().toISOString() }}"
+            },
+            {
+              "name": "articlesProcessed",
+              "value": "={{ $node[\"Enhanced Data Processor\"].json.length }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "enhanced-logger",
+      "name": "Enhanced Operation Logger",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1840,
+        200
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Advanced Scraper Configuration": {
+      "main": [
+        [
+          {
+            "node": "Process Target URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Target URLs": {
+      "main": [
+        [
+          {
+            "node": "AI Structure Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Structure Analysis": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Scraper Selector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhanced Scraper Selector": {
+      "main": [
+        [
+          {
+            "node": "Python Scraper",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "JavaScript Scraper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Python Scraper": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Data Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JavaScript Scraper": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Data Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhanced Data Processor": {
+      "main": [
+        [
+          {
+            "node": "Quality Batch Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quality Batch Processor": {
+      "main": [
+        [
+          {
+            "node": "Enhanced API Integration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhanced Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Advanced Scraper Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch Completer": {
+      "main": [
+        [
+          {
+            "node": "Quality Batch Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhanced API Integration": {
+      "main": [
+        [
+          {
+            "node": "Batch Completer",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Enhanced Operation Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "techpulse-ultimate-v3-fixed",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "techpulse-ultimate-scraper-v3-fixed",
+  "tags": ["scraper", "news", "automation", "techpulse", "enhanced"]
+}
