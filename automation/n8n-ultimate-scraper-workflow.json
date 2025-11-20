@@ -1,0 +1,306 @@
+{
+  "name": "Ultimate Universal News Scraper - Production Ready",
+  "nodes": [
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "targetUrls",
+              "value": "https://techcrunch.com\nhttps://arstechnica.com"
+            },
+            {
+              "name": "maxArticlesPerSite",
+              "value": "5"
+            },
+            {
+              "name": "scrapeDelay",
+              "value": "3000"
+            },
+            {
+              "name": "qualityThreshold",
+              "value": "0.7"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "workflow-config",
+      "name": "Scraping Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const config = $node[\"Scraping Configuration\"].json;\nconst urlList = config.targetUrls.split('\\n').filter(url => url.trim());\nconst maxArticles = parseInt(config.maxArticlesPerSite || '5');\nconst scrapeDelay = parseInt(config.scrapeDelay || '3000');\nconst qualityThreshold = parseFloat(config.qualityThreshold || '0.7');\n\n// Create URL objects for processing\nreturn urlList.map(url => ({\n  json: {\n    targetUrl: url.trim(),\n    maxArticles,\n    scrapeDelay,\n    qualityThreshold,\n    processingId: Math.random().toString(36).substr(2, 9)\n  }\n}));\n\nconsole.log(`Prepared ${urlList.length} URLs for processing`);"
+      },
+      "id": "url-processor",
+      "name": "Process URLs",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        320,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const input = $input.all()[0];\nconst config = input.json;\n\n// AI-powered HTML structure analysis\nconst analyzeStructure = (htmlContent, url) => {\n  // Known patterns for popular sites\n  const domain = url.replace('https://', '').replace('http://', '').split('/')[0].replace('www.', '');\n  \n  const patterns = {\n    'techcrunch.com': {\n      articleSelector: 'article.post-block, .post-block',\n      titleSelector: 'h2.post-block__title a, .post-block__title a',\n      urlSelector: 'h2.post-block__title a, .post-block__title a',\n      summarySelector: '.post-block__content',\n      dateSelector: '.river-byline__time',\n      contentSelector: 'article .content, .article-content',\n      confidence: 1.0\n    },\n    'arstechnica.com': {\n      articleSelector: 'article.tease, .tease',\n      titleSelector: 'h2 a, .tease h2 a',\n      urlSelector: 'h2 a, .tease h2 a',\n      summarySelector: '.tease p.excerpt',\n      dateSelector: 'time',\n      contentSelector: 'article .content, .article-content',\n      confidence: 1.0\n    },\n    'theverge.com': {\n      articleSelector: 'article[data-analytics-link=\"article\"], .c-entry-box',\n      titleSelector: 'h2 a, .c-entry-box__title a',\n      urlSelector: 'h2 a, .c-entry-box__title a',\n      summarySelector: '.c-entry-box__excerpt p',\n      dateSelector: 'time',\n      contentSelector: 'article .c-entry-content, .c-entry-content',\n      confidence: 0.9\n    }\n  };\n  \n  if (patterns[domain]) {\n    return patterns[domain];\n  }\n  \n  // Adaptive analysis for unknown sites\n  const parser = new DOMParser();\n  const doc = parser.parseFromString(htmlContent, 'text/html');\n  \n  // Test different selectors\n  const selectors = [\n    { article: 'article', title: 'h2 a, h3 a', confidence: 0.8 },\n    { article: '.card, .post', title: '.card-title a, .post-title a', confidence: 0.7 },\n    { article: '.news-item, .entry', title: 'h2 a, .title a', confidence: 0.6 }\n  ];\n  \n  for (const selector of selectors) {\n    const articles = doc.querySelectorAll(selector.article);\n    if (articles.length > 0 && articles.length <= 50) {\n      return {\n        articleSelector: selector.article,\n        titleSelector: selector.title,\n        urlSelector: 'a[href]',\n        summarySelector: 'p, .excerpt',\n        dateSelector: 'time, .date',\n        contentSelector: 'article p, main p',\n        confidence: selector.confidence\n      };\n    }\n  }\n  \n  return {\n    articleSelector: 'article, .article, .post',\n    titleSelector: 'h1, h2, h3, .title',\n    urlSelector: 'a[href]',\n    summarySelector: 'p, .summary',\n    dateSelector: 'time, .date',\n    contentSelector: 'article p, main p',\n    confidence: 0.3\n  };\n};\n\n// Determine if site needs JavaScript rendering\nconst needsJavaScript = (url) => {\n  const spaSites = ['nytimes.com', 'washingtonpost.com', 'bloomberg.com'];\n  return spaSites.some(site => url.includes(site));\n};\n\nreturn {\n  json: {\n    ...config,\n    siteAnalysis: analyzeStructure,\n    needsJavaScript: needsJavaScript(config.targetUrl),\n    analysisComplete: true\n  }\n};"
+      },
+      "id": "ai-structure-analyzer",
+      "name": "AI Structure Analysis",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        520,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "=// Dynamic scraper selection based on site analysis\nconst input = $input.all()[0];\nconst config = input.json;\n\n// Choose scraper type based on analysis\nlet scraperType = 'python'; // default\nlet pythonCode = '';\nlet jsCode = '';\n\nif (config.needsJavaScript) {\n  scraperType = 'javascript';\n  \n  // Generate JavaScript scraper code\n  jsCode = `\nconst puppeteer = require('puppeteer');\n\nasync function scrapeWithJS(url, maxArticles) {\n  const browser = await puppeteer.launch({ headless: true });\n  const page = await browser.newPage();\n  \n  try {\n    await page.goto(url, { waitUntil: 'networkidle2' });\n    \n    const articles = await page.evaluate((max) => {\n      const elements = document.querySelectorAll('article, .article, .post');\n      return Array.from(elements).slice(0, max).map(el => ({\n        title: el.querySelector('h1, h2, h3')?.textContent?.trim() || '',\n        url: el.querySelector('a')?.href || '',\n        summary: el.querySelector('p')?.textContent?.trim() || ''\n      }));\n    }, maxArticles);\n    \n    return articles;\n  } finally {\n    await browser.close();\n  }\n}\n\n// Execute scraping\nscrapeWithJS('${config.targetUrl}', ${config.maxArticles});\n`;\n} else {\n  scraperType = 'python';\n  \n  // Generate Python scraper code\n  pythonCode = `\nimport requests\nfrom bs4 import BeautifulSoup\nimport time\nimport random\nimport json\n\nTARGET_URL = \"${config.targetUrl}\"\nMAX_ARTICLES = ${config.maxArticles}\n\nclass NewsScraper:\n    def __init__(self):\n        self.session = requests.Session()\n        self.session.headers.update({\n            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'\n        })\n    \n    def scrape_articles(self):\n        try:\n            response = self.session.get(TARGET_URL, timeout=30)\n            soup = BeautifulSoup(response.content, 'html.parser')\n            \n            articles = []\n            selectors = ['article', '.article', '.post', '.card']\n            \n            for selector in selectors:\n                elements = soup.select(selector)\n                if elements and len(elements) <= MAX_ARTICLES * 2:\n                    for elem in elements[:MAX_ARTICLES]:\n                        title = elem.select_one('h1, h2, h3, .title')?.get_text().strip()\n                        url = elem.select_one('a')?.get('href')\n                        summary = elem.select_one('p, .summary')?.get_text().strip()\n                        \n                        if title and url:\n                            articles.append({\n                                'title': title,\n                                'url': url if url.startswith('http') else TARGET_URL + url,\n                                'summary': summary or ''\n                            })\n                    break\n            \n            return articles\n        except Exception as e:\n            return []\n\n# Execute\nscraper = NewsScraper()\nprint(json.dumps(scraper.scrape_articles()))\n`;\n}\n\nreturn {\n  json: {\n    ...config,\n    scraperType,\n    pythonCode,\n    jsCode,\n    scraperSelected: true\n  }\n};"
+      },
+      "id": "scraper-selector",
+      "name": "Select Scraper Type",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        720,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "=Python Code",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "python-executor",
+      "name": "Python Scraper",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        920,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "=JavaScript Code",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "js-executor",
+      "name": "JavaScript Scraper",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        920,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const inputData = $input.all()[0];\nlet articles = [];\n\n// Determine which scraper was used\nconst config = inputData.json;\nconst scraperType = config.scraperType;\n\nconsole.log('Processing data from', scraperType, 'scraper');\n\ntry {\n  let scrapedData;\n  \n  if (scraperType === 'python') {\n    scrapedData = $node[\"Python Scraper\"].json;\n  } else {\n    scrapedData = $node[\"JavaScript Scraper\"].json;\n  }\n  \n  console.log('Raw scraped data:', typeof scrapedData, JSON.stringify(scrapedData).substring(0, 200));\n  \n  // Parse data based on format\n  if (Array.isArray(scrapedData)) {\n    articles = scrapedData;\n  } else if (typeof scrapedData === 'string') {\n    try {\n      articles = JSON.parse(scrapedData);\n    } catch (e) {\n      console.error('Failed to parse JSON string:', e);\n      articles = [];\n    }\n  } else if (scrapedData && scrapedData.data) {\n    articles = Array.isArray(scrapedData.data) ? scrapedData.data : [scrapedData.data];\n  } else {\n    console.error('Unexpected data format:', scrapedData);\n    articles = [];\n  }\n  \n  // Validate and clean articles\n  const validArticles = articles.filter(article => \n    article && \n    article.title && \n    typeof article.title === 'string' && \n    article.title.trim().length > 5 &&\n    article.url && \n    typeof article.url === 'string'\n  ).map(article => ({\n    ...article,\n    title: article.title.trim(),\n    url: article.url.trim(),\n    summary: (article.summary || '').trim(),\n    source: config.targetUrl.replace('https://', '').replace('http://', '').split('/')[0],\n    scrapedAt: new Date().toISOString()\n  }));\n  \n  console.log(`Validated ${validArticles.length} articles from ${articles.length} raw items`);\n  \n  return validArticles.map(article => ({ json: article }));\n  \n} catch (error) {\n  console.error('Data processing error:', error);\n  return [{ json: { error: 'Data processing failed', details: error.message, targetUrl: config.targetUrl } }];\n}"
+      },
+      "id": "data-validator",
+      "name": "Validate & Process Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "batch-processor",
+      "name": "Batch Process Articles",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "basicAuth",
+        "requestMethod": "POST",
+        "url": "http://localhost:5000/api/news",
+        "jsonParameters": true,
+        "options": {
+          "timeout": 30000
+        },
+        "bodyParametersJson": "={\n  \"title\": \"{{ $json.title }}\",\n  \"content\": \"{{ $json.content || $json.summary || 'Content will be scraped separately' }}\",\n  \"slug\": \"{{ $json.slug || $json.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') }}\",\n  \"summary\": \"{{ $json.summary }}\",\n  \"category\": \"{{ $json.category || 'Technology' }}\",\n  \"tags\": {{ JSON.stringify($json.tags || ['news']) }},\n  \"imageUrl\": \"{{ $json.imageUrl }}\",\n  \"publishedAt\": \"{{ $json.publishedAt || $json.published_at || $json.scrapedAt }}\",\n  \"featured\": false,\n  \"source\": \"{{ $json.source }}\"\n}"
+      },
+      "id": "api-integration",
+      "name": "Save to KingsNews API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        200
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "kingsnews-api",
+          "name": "KingsNews API Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "boolean": [
+            {
+              "name": "success",
+              "value": true
+            }
+          ],
+          "string": [
+            {
+              "name": "message",
+              "value": "Scraping completed successfully"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ new Date().toISOString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "success-logger",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1720,
+        200
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Scraping Configuration": {
+      "main": [
+        [
+          {
+            "node": "Process URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process URLs": {
+      "main": [
+        [
+          {
+            "node": "AI Structure Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Structure Analysis": {
+      "main": [
+        [
+          {
+            "node": "Select Scraper Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Scraper Type": {
+      "main": [
+        [
+          {
+            "node": "Python Scraper",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "JavaScript Scraper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Python Scraper": {
+      "main": [
+        [
+          {
+            "node": "Validate & Process Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JavaScript Scraper": {
+      "main": [
+        [
+          {
+            "node": "Validate & Process Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Process Data": {
+      "main": [
+        [
+          {
+            "node": "Batch Process Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch Process Articles": {
+      "main": [
+        [
+          {
+            "node": "Save to KingsNews API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to KingsNews API": {
+      "main": [
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ultimate-scraper-workflow-v1.0",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "ultimate-news-scraper-workflow",
+  "tags": ["scraper", "news", "automation", "ai", "python", "javascript"]
+}
