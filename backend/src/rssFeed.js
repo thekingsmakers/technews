@@ -7,6 +7,7 @@ const escape = (value = '') =>
     .replace(/'/g, '&#39;');
 
 export function buildRssFeed({ items = [], siteUrl, feedUrl, title, description }) {
+  // Use the provided siteUrl (from request headers) or fall back to localhost only if absolutely necessary
   const fallbackSite = siteUrl || 'http://localhost:6080';
   const fallbackFeed = feedUrl || `${fallbackSite.replace(/\/$/, '')}/rss.xml`;
   const feedTitle = title || 'TheKingsmaker Tech News';

@@ -1,34 +1,5 @@
 @tailwind base;
 @tailwind components;
-@tailwind utilities;
-
-@layer base {
-  html {
-    scroll-behavior: smooth;
-  }
-  
-  body {
-    @apply bg-secondary-50 text-secondary-900 dark:bg-secondary-900 dark:text-secondary-100 antialiased;
-  }
-}
-
-@layer utilities {
-  .glass {
-    @apply bg-white/70 dark:bg-secondary-900/70 backdrop-blur-lg border border-white/20 dark:border-secondary-700/30;
-  }
-  
-  .glass-card {
-    @apply bg-white/80 dark:bg-secondary-800/50 backdrop-blur-md border border-secondary-200/50 dark:border-secondary-700/50 shadow-lg hover:shadow-xl transition-all duration-300;
-  }
-
-  .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-accent-500 dark:from-primary-400 dark:to-accent-400;
-  }
-}
-
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
 }
 
 ::-webkit-scrollbar-track {

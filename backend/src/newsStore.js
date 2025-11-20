@@ -119,34 +119,37 @@ export function autoArchiveNews() {
     return;
   }
 
-  const now = Date.now();
-  const timeSinceLastRun = config.lastArchiveRun ? now - new Date(config.lastArchiveRun).getTime() : Infinity;
-
-  if (timeSinceLastRun < config.autoArchiveInterval) {
-    console.log(`Auto-archiving not due yet. Next run in ${Math.ceil((config.autoArchiveInterval - timeSinceLastRun) / (60 * 60 * 1000))} hours`);
-    return;
-  }
-
   const news = readNews();
-  if (news.length <= config.maxActiveArticles) {
-    console.log(`No archiving needed. Current articles: ${news.length}, limit: ${config.maxActiveArticles}`);
+  const now = Date.now();
+  const oneDayMs = 24 * 60 * 60 * 1000;
+
+  // Filter articles older than 24 hours
+  const articlesToArchive = news.filter(n => {
+    const pubDate = new Date(n.publishedAt).getTime();
+    return (now - pubDate) > oneDayMs;
+  });
+
+  if (articlesToArchive.length === 0) {
+    console.log('No articles older than 24 hours to archive.');
     return;
   }
 
-  console.log(`Starting auto-archiving process. Current articles: ${news.length}`);
+  console.log(`Found ${articlesToArchive.length} articles older than 24 hours. Archiving...`);
 
-  const sortedNews = news.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-  const latestNews = sortedNews.slice(0, config.maxActiveArticles);
-  const oldNews = sortedNews.slice(config.maxActiveArticles);
+  // Keep articles newer than 24 hours
+  const activeNews = news.filter(n => {
+    const pubDate = new Date(n.publishedAt).getTime();
+    return (now - pubDate) <= oneDayMs;
+  });
 
   const archive = readNews(ARCHIVE_PATH);
-  const updatedArchive = [...archive, ...oldNews];
+  const updatedArchive = [...archive, ...articlesToArchive];
 
-  writeNews(latestNews);
+  writeNews(activeNews);
   writeNews(updatedArchive, ARCHIVE_PATH);
   setArchiveConfig({ lastArchiveRun: new Date().toISOString() });
 
-  console.log(`Auto-archiving completed. Archived ${oldNews.length} articles. Active articles remaining: ${latestNews.length}`);
+  console.log(`Auto-archiving completed. Archived ${articlesToArchive.length} articles. Active articles remaining: ${activeNews.length}`);
 }
 
 function detectAndLogDuplicate(payload, existingIndex) {

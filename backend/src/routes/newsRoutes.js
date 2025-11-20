@@ -14,8 +14,18 @@ const router = Router();
 router.get('/rss.xml', (req, res) => {
   try {
     const items = getAllNews();
-    const siteUrl = `${req.protocol}://${req.get('host')}`;
-    const feedUrl = `${siteUrl}/api/news/rss.xml`;
+    // Dynamically determine the site URL based on the request headers
+    // This ensures links are correct whether accessed via localhost, IP, or domain
+    const protocol = req.protocol;
+    const host = req.get('host'); // e.g., "192.168.1.114:5000"
+
+    // We assume the frontend is on port 6080 if the backend is on 5000, 
+    // but for the RSS links we want to point to the frontend.
+    // If the host includes port 5000, we replace it with 6080 for the item links.
+    const frontendHost = host.replace(':5000', ':6080');
+    const siteUrl = `${protocol}://${frontendHost}`;
+
+    const feedUrl = `${protocol}://${host}/api/news/rss.xml`;
 
     const rssXml = buildRssFeed({
       items,
