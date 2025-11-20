@@ -1,0 +1,268 @@
+{
+    "name": "TechPulse Ultimate Scraper v4",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours"
+                        }
+                    ]
+                }
+            },
+            "id": "trigger-node",
+            "name": "Schedule Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1,
+            "position": [
+                460,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://raw.githubusercontent.com/TheKingsmakers/technews/main/automation/rss-sources.json",
+                "options": {}
+            },
+            "id": "fetch-sources",
+            "name": "Fetch RSS Sources",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                680,
+                300
+            ],
+            "notes": "Fetches the list of RSS feeds. For local dev, you might want to use a Read File node instead."
+        },
+        {
+            "parameters": {
+                "fieldToSplitOut": "data"
+            },
+            "id": "split-sources",
+            "name": "Split Sources",
+            "type": "n8n-nodes-base.itemLists",
+            "typeVersion": 1,
+            "position": [
+                900,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "={{ $json.url }}",
+                "options": {}
+            },
+            "id": "read-rss",
+            "name": "Read RSS Feed",
+            "type": "n8n-nodes-base.rssFeedRead",
+            "typeVersion": 1,
+            "position": [
+                1120,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "batchSize": 1,
+                "options": {}
+            },
+            "id": "split-items",
+            "name": "Split Items",
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 1,
+            "position": [
+                1340,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "={{ $json.link }}",
+                "options": {
+                    "response": {
+                        "response": {
+                            "fullResponse": true
+                        }
+                    }
+                }
+            },
+            "id": "fetch-article-html",
+            "name": "Fetch Article HTML",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                1560,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "functionCode": "// Smart Content Extractor\nconst html = $input.item.json.body;\nconst rssItem = $node[\"Split Items\"].json;\n\n// Helper to clean text\nfunction cleanText(text) {\n  if (!text) return '';\n  return text\n    .replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/gim, '')\n    .replace(/<style\\b[^>]*>[\\s\\S]*?<\\/style>/gim, '')\n    .replace(/<[^>]+>/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n\n// Helper to find image\nfunction findImage(html) {\n  const match = html.match(/<meta property=\"og:image\" content=\"([^\"]+)\"/i);\n  return match ? match[1] : null;\n}\n\n// Extract content based on common selectors\n// This is a simplified version of a readability algorithm\nlet content = '';\nconst contentMarkers = [\n  '<article', '<main', 'class=\"post-content\"', 'class=\"entry-content\"', \n  'class=\"article-body\"', 'class=\"story-body\"', 'itemprop=\"articleBody\"'\n];\n\nlet startIndex = -1;\nlet endIndex = -1;\n\n// Try to find a container\nfor (const marker of contentMarkers) {\n  startIndex = html.indexOf(marker);\n  if (startIndex !== -1) break;\n}\n\nif (startIndex !== -1) {\n  // Rough extraction: take next 15000 chars and clean\n  const rawChunk = html.substring(startIndex, startIndex + 15000);\n  content = cleanText(rawChunk);\n} else {\n  // Fallback to RSS summary or body\n  content = cleanText(html.substring(0, 10000)); // Fallback\n}\n\n// Ensure we have something\nif (content.length < 200 && rssItem.content) {\n  content = cleanText(rssItem.content);\n}\nif (content.length < 200 && rssItem.contentSnippet) {\n  content = cleanText(rssItem.contentSnippet);\n}\n\n// Extract Image\nconst imageUrl = findImage(html) || null;\n\nreturn {\n  json: {\n    title: rssItem.title,\n    slug: rssItem.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),\n    summary: rssItem.contentSnippet || content.substring(0, 200) + '...',\n    content: content,\n    category: \"General\", // Backend will auto-categorize\n    tags: [\"news\", \"tech\"],\n    imageUrl: imageUrl,\n    publishedAt: rssItem.pubDate,\n    source: rssItem.link ? new URL(rssItem.link).hostname.replace('www.', '') : 'Unknown',\n    originalLink: rssItem.link\n  }\n};"
+            },
+            "id": "extract-content",
+            "name": "Extract Content",
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 1,
+            "position": [
+                1780,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "requestMethod": "POST",
+                "url": "http://192.168.1.114:5000/api/news",
+                "options": {},
+                "bodyParametersUi": {
+                    "parameter": [
+                        {
+                            "name": "title",
+                            "value": "={{ $json.title }}"
+                        },
+                        {
+                            "name": "content",
+                            "value": "={{ $json.content }}"
+                        },
+                        {
+                            "name": "summary",
+                            "value": "={{ $json.summary }}"
+                        },
+                        {
+                            "name": "imageUrl",
+                            "value": "={{ $json.imageUrl }}"
+                        },
+                        {
+                            "name": "source",
+                            "value": "={{ $json.source }}"
+                        },
+                        {
+                            "name": "publishedAt",
+                            "value": "={{ $json.publishedAt }}"
+                        }
+                    ]
+                }
+            },
+            "id": "post-to-api",
+            "name": "POST to API",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                2000,
+                300
+            ]
+        },
+        {
+            "parameters": {},
+            "id": "loop-back",
+            "name": "Loop Back",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                2220,
+                400
+            ]
+        }
+    ],
+    "connections": {
+        "Schedule Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch RSS Sources",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch RSS Sources": {
+            "main": [
+                [
+                    {
+                        "node": "Split Sources",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Split Sources": {
+            "main": [
+                [
+                    {
+                        "node": "Read RSS Feed",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Read RSS Feed": {
+            "main": [
+                [
+                    {
+                        "node": "Split Items",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Split Items": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Article HTML",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Article HTML": {
+            "main": [
+                [
+                    {
+                        "node": "Extract Content",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extract Content": {
+            "main": [
+                [
+                    {
+                        "node": "POST to API",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "POST to API": {
+            "main": [
+                [
+                    {
+                        "node": "Loop Back",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Loop Back": {
+            "main": [
+                [
+                    {
+                        "node": "Split Items",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

@@ -1,0 +1,34 @@
+[
+  {
+    "name": "TechCrunch",
+    "url": "https://techcrunch.com/feed/"
+  },
+  {
+    "name": "The Verge",
+    "url": "https://www.theverge.com/rss/index.xml"
+  },
+  {
+    "name": "Wired",
+    "url": "https://www.wired.com/feed/rss"
+  },
+  {
+    "name": "Ars Technica",
+    "url": "http://feeds.arstechnica.com/arstechnica/index"
+  },
+  {
+    "name": "VentureBeat",
+    "url": "http://feeds.feedburner.com/venturebeat/SZYF"
+  },
+  {
+    "name": "Computer Weekly",
+    "url": "https://www.computerweekly.com/rss/Latest-IT-news.xml"
+  },
+  {
+    "name": "Engadget",
+    "url": "https://www.engadget.com/rss.xml"
+  },
+  {
+    "name": "Hacker News (Top)",
+    "url": "https://hnrss.org/newest?points=100"
+  }
+]
