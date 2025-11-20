@@ -23,7 +23,10 @@ export default function HomePage() {
           throw new Error('Failed to fetch news');
         }
         const data = await response.json();
-        setNews(data);
+        // API returns { items: [...], ... } or just [...] depending on endpoint, 
+        // but /api/news returns { items: ... }
+        const items = Array.isArray(data) ? data : (data.items || []);
+        setNews(items);
       } catch (err) {
         setError(err.message);
       } finally {

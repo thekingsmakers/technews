@@ -9,9 +9,14 @@ export default function CategoryPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/news/category/${name}`)
+    // Correct endpoint: /api/news?category=...
+    fetch(`/api/news?category=${encodeURIComponent(name)}`)
       .then(res => res.json())
-      .then(data => setArticles(data))
+      .then(data => {
+        // API returns { items: [...], ... }
+        const items = Array.isArray(data) ? data : (data.items || []);
+        setArticles(items);
+      })
       .catch(err => console.error(`Error fetching category:${name}`, err))
       .finally(() => setLoading(false));
   }, [name]);
