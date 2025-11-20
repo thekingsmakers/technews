@@ -6,13 +6,14 @@ security, devices, and developer-tools coverage.
 ### Stack
 - `backend/` – Express API that stores news in `data/news.json`, exposes health,
   sitemap, upsert endpoint (`POST /api/news`), and Cloudflare-friendly IP logging.
+  **New:** Includes intelligent keyword-based auto-categorization.
 - `frontend/` – Vite + React single page app styled with a regal dark/light
   theme and branded as “TheKingsmaker Tech News”.
 - `cloudflared-config.yml` – Tunnel template mapping `api.thekingsmaker.org`
   to the backend (port 5000) and `thekingsmaker.org` to the frontend (port 6080).
 - `automation/` – n8n workflow example plus docs describing how to wire the API
-  into an automated content pipeline. Use `n8n-techpulse-rss.json` when you
-  need the full flow (schedule → API health/init → RSS ingest → POST).
+  into an automated content pipeline. Use `n8n-techpulse-ultimate-v5.json` for
+  the full multi-source, full-story scraping pipeline.
 
 ### Local Development
 1. **Backend**
