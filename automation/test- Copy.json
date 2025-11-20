@@ -57,15 +57,22 @@
     },
     {
       "parameters": {
+        "method": "GET",
         "url": "={{ $json.config.targetUrl }}",
         "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "text"
+            }
+          },
           "timeout": 30000
         }
       },
       "id": "http-fetcher-1",
       "name": "Fetch Homepage",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
+      "typeVersion": 4,
       "position": [840, 300]
     },
     {
@@ -81,20 +88,27 @@
     },
     {
       "parameters": {
+        "method": "GET",
         "url": "={{ $json.url }}",
         "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "text"
+            }
+          },
           "timeout": 30000
         }
       },
       "id": "article-fetcher-1",
       "name": "Fetch Article Content",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
+      "typeVersion": 4,
       "position": [1240, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Extract article content from HTML\nconst htmlContent = $input.item.binary?.data?.data || $input.item.json?.body || '';\nconst articleData = $input.item.json;\n\n// Simple paragraph extraction\nconst paragraphPattern = /<p[^>]*>([^<]+)<\\/p>/gi;\nconst paragraphs = [];\nlet match;\n\nwhile ((match = paragraphPattern.exec(htmlContent)) !== null) {\n  const text = match[1].replace(/<[^>]+>/g, '').trim();\n  if (text.length > 50) {\n    paragraphs.push(text);\n  }\n}\n\nconst content = paragraphs.join(' ').substring(0, 10000);\n\nreturn {\n  json: {\n    title: articleData.title,\n    content: content || 'Content not available',\n    summary: articleData.summary || content.substring(0, 250) + '...',\n    slug: articleData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),\n    category: articleData.category || 'Technology',\n    tags: ['news', (articleData.category || 'technology').toLowerCase().replace(/\\s+/g, '-'), articleData.source],\n    imageUrl: articleData.image_url,\n    publishedAt: articleData.published_at || new Date().toISOString(),\n    featured: false,\n    source: articleData.source || 'Web Scraper',\n    url: articleData.url\n  }\n};"
+        "jsCode": "// Extract article content from HTML\nconst item = $input.item.json;\nlet htmlContent = '';\n\n// Try multiple ways to access HTML content\nif (typeof item === 'string') {\n  htmlContent = item;\n} else if (item.body) {\n  htmlContent = item.body;\n} else if (item.data) {\n  htmlContent = item.data;\n} else {\n  htmlContent = JSON.stringify(item);\n}\n\n// Get original article data from previous node\nconst articleData = $('Parse Articles').item.json;\n\n// Simple paragraph extraction\nconst paragraphPattern = /<p[^>]*>([^<]+)<\\/p>/gi;\nconst paragraphs = [];\nlet match;\n\nwhile ((match = paragraphPattern.exec(htmlContent)) !== null) {\n  const text = match[1].replace(/<[^>]+>/g, '').replace(/&[a-z]+;/gi, '').trim();\n  if (text.length > 50) {\n    paragraphs.push(text);\n  }\n}\n\nconst content = paragraphs.join(' ').substring(0, 10000);\nconst summary = content ? content.substring(0, 250) + '...' : 'No summary available';\n\nreturn {\n  json: {\n    title: articleData.title || 'Untitled',\n    content: content || 'Content not available',\n    summary: summary,\n    slug: (articleData.title || 'article').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),\n    category: articleData.category || 'Technology',\n    tags: ['news', (articleData.category || 'technology').toLowerCase().replace(/\\s+/g, '-'), articleData.source || 'web'],\n    imageUrl: articleData.image_url || null,\n    publishedAt: articleData.published_at || new Date().toISOString(),\n    featured: false,\n    source: articleData.source || 'Web Scraper',\n    url: articleData.url\n  }\n};"
       },
       "id": "data-processor-1",
       "name": "Process & Validate Data",
