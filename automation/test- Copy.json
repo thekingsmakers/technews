@@ -1,0 +1,165 @@
+{
+  "name": "Universal News Scraper - Full Content Extractor",
+  "nodes": [
+    {
+      "parameters": {
+        "values": {
+          "boolean": [
+            {
+              "name": "enabled",
+              "value": true
+            }
+          ],
+          "string": [
+            {
+              "name": "targetUrl",
+              "value": "https://techcrunch.com"
+            },
+            {
+              "name": "maxArticles",
+              "value": "10"
+            },
+            {
+              "name": "scrapeDelay",
+              "value": "2000"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "workflow-input-1",
+      "name": "Scraper Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const config = items[0].json;\nconst targetUrl = config.targetUrl;\nconst maxArticles = parseInt(config.maxArticles || '10');\nconst scrapeDelay = parseInt(config.scrapeDelay || '2000');\n\n// Smart site detection\nconst sitePatterns = {\n  'techcrunch.com': {\n    selectors: {\n      articles: 'article.post-block, .post-block',\n      title: 'h2.post-block__title a, .post-block__title a',\n      link: 'h2.post-block__title a, .post-block__title a',\n      summary: '.post-block__content',\n      date: '.river-byline__time',\n      category: '.post-block__category'\n    },\n    category: 'Technology'\n  },\n  'arstechnica.com': {\n    selectors: {\n      articles: 'article.tease, .tease',\n      title: 'h2 a, .tease h2 a',\n      link: 'h2 a, .tease h2 a',\n      summary: '.tease p.excerpt',\n      date: 'time',\n      category: '.overlay'\n    },\n    category: 'Technology'\n  },\n  'theverge.com': {\n    selectors: {\n      articles: 'article[data-analytics-link=\"article\"], .c-entry-box',\n      title: 'h2 a, .c-entry-box__title a',\n      link: 'h2 a, .c-entry-box__title a',\n      summary: '.c-entry-box__excerpt p',\n      date: 'time',\n      category: '.c-entry-box__category'\n    },\n    category: 'Technology'\n  },\n  'wired.com': {\n    selectors: {\n      articles: 'li.card-component, .card-component',\n      title: 'h2 a, .card-component__title a',\n      link: 'h2 a, .card-component__title a',\n      summary: '.card-component__description',\n      date: '.card-component__byline time',\n      category: '.card-component__category'\n    },\n    category: 'Technology'\n  }\n};\n\n// Determine site configuration\nconst urlParts = targetUrl.replace('https://', '').replace('http://', '').split('/')[0];\nconst domain = urlParts.replace('www.', '');\nconst siteConfig = sitePatterns[domain] || {\n  selectors: {\n    articles: 'article, .article, .post, .entry',\n    title: 'h1, h2 a, .title a',\n    link: 'h1 a, h2 a, .title a',\n    summary: 'p, .excerpt, .summary',\n    date: 'time, .date, .published',\n    category: '.category, .tag'\n  },\n  category: 'General'\n};\n\nreturn [{\n  json: {\n    targetUrl,\n    maxArticles,\n    scrapeDelay,\n    siteConfig,\n    domain\n  }\n}];"
+      },
+      "id": "config-processor-1",
+      "name": "Process Configuration",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const config = items[0].json;\nconst targetUrl = config.targetUrl;\nconst maxArticles = config.maxArticles;\nconst scrapeDelay = config.scrapeDelay;\nconst siteConfig = config.siteConfig;\nconst domain = config.domain;\n\n// Since n8n doesn't natively execute Python, we'll use JavaScript instead\n// This is a JavaScript implementation of the scraper\n\nconst articles = [];\n\n// For demonstration, return the configuration with instruction\n// In production, you would use HTTP Request node to call the target URL\n// and parse HTML with cheerio or similar\n\nreturn [{\n  json: {\n    config,\n    message: 'Ready to scrape',\n    nextStep: 'Use HTTP Request node to fetch HTML'\n  }\n}];"
+      },
+      "id": "python-scraper-1",
+      "name": "Generate Scraper Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.config.targetUrl }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "http-fetcher-1",
+      "name": "Fetch Homepage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [840, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Parse HTML and extract articles\nconst htmlContent = items[0].binary?.data?.data || items[0].json?.body || '';\nconst config = $('Generate Scraper Config').item.json.config;\n\nif (!htmlContent) {\n  throw new Error('No HTML content received');\n}\n\n// Simple regex-based extraction (in production, use proper HTML parser)\nconst articles = [];\n\n// Extract article links using regex patterns\nconst linkPattern = /<a[^>]+href=[\"']([^\"']+)[\"'][^>]*>([^<]+)<\\/a>/gi;\nlet match;\nlet count = 0;\n\nwhile ((match = linkPattern.exec(htmlContent)) !== null && count < config.maxArticles) {\n  const url = match[1];\n  const title = match[2];\n  \n  // Filter for article URLs\n  if (url.includes('/20') || url.includes('article') || url.includes('post')) {\n    articles.push({\n      title: title.trim(),\n      url: url.startsWith('http') ? url : new URL(url, config.targetUrl).href,\n      summary: '',\n      published_at: new Date().toISOString(),\n      category: config.siteConfig.category || 'Technology',\n      image_url: null,\n      source: config.domain,\n      content: ''\n    });\n    count++;\n  }\n}\n\nreturn articles.map(article => ({ json: article }));"
+      },
+      "id": "html-parser-1",
+      "name": "Parse Articles",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "article-fetcher-1",
+      "name": "Fetch Article Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract article content from HTML\nconst htmlContent = $input.item.binary?.data?.data || $input.item.json?.body || '';\nconst articleData = $input.item.json;\n\n// Simple paragraph extraction\nconst paragraphPattern = /<p[^>]*>([^<]+)<\\/p>/gi;\nconst paragraphs = [];\nlet match;\n\nwhile ((match = paragraphPattern.exec(htmlContent)) !== null) {\n  const text = match[1].replace(/<[^>]+>/g, '').trim();\n  if (text.length > 50) {\n    paragraphs.push(text);\n  }\n}\n\nconst content = paragraphs.join(' ').substring(0, 10000);\n\nreturn {\n  json: {\n    title: articleData.title,\n    content: content || 'Content not available',\n    summary: articleData.summary || content.substring(0, 250) + '...',\n    slug: articleData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),\n    category: articleData.category || 'Technology',\n    tags: ['news', (articleData.category || 'technology').toLowerCase().replace(/\\s+/g, '-'), articleData.source],\n    imageUrl: articleData.image_url,\n    publishedAt: articleData.published_at || new Date().toISOString(),\n    featured: false,\n    source: articleData.source || 'Web Scraper',\n    url: articleData.url\n  }\n};"
+      },
+      "id": "data-processor-1",
+      "name": "Process & Validate Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "requestMethod": "POST",
+        "url": "http://localhost:5000/api/news",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "api-poster-1",
+      "name": "POST to KingsNews API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1640, 300],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "scraper-auth",
+          "name": "KingsNews API Auth"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Scraper Configuration": {
+      "main": [[{"node": "Process Configuration", "type": "main", "index": 0}]]
+    },
+    "Process Configuration": {
+      "main": [[{"node": "Generate Scraper Config", "type": "main", "index": 0}]]
+    },
+    "Generate Scraper Config": {
+      "main": [[{"node": "Fetch Homepage", "type": "main", "index": 0}]]
+    },
+    "Fetch Homepage": {
+      "main": [[{"node": "Parse Articles", "type": "main", "index": 0}]]
+    },
+    "Parse Articles": {
+      "main": [[{"node": "Fetch Article Content", "type": "main", "index": 0}]]
+    },
+    "Fetch Article Content": {
+      "main": [[{"node": "Process & Validate Data", "type": "main", "index": 0}]]
+    },
+    "Process & Validate Data": {
+      "main": [[{"node": "POST to KingsNews API", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "universal-scraper-v2-fixed",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "universal-news-scraper-fixed",
+  "tags": ["scraper", "news", "automation", "fixed"]
+}

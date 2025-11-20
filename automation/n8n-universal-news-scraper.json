@@ -71,10 +71,6 @@
       "name": "Execute Python Scraper",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "id": "python-executor-1",
-      "name": "Execute Python Scraper",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
       "position": [
         840,
         300
