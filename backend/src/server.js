@@ -3,7 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import os from 'os';
 import newsRoutes from './routes/newsRoutes.js';
-import { getAllNews } from './newsStore.js';
+import { getAllNews, autoArchiveNews } from './newsStore.js';
 import { buildRssFeed } from './rssFeed.js';
 
 const app = express();
@@ -81,6 +81,15 @@ app.get('/api/request-info', (req, res) => {
     userAgent: req.headers['user-agent'] || null
   });
 });
+
+// Auto-archiving scheduler
+setInterval(() => {
+  try {
+    autoArchiveNews();
+  } catch (error) {
+    console.error('Auto-archiving check failed:', error);
+  }
+}, 60 * 60 * 1000); // Check every hour
 
 // API Routes - now public by default
 app.use('/api/news', newsRoutes);

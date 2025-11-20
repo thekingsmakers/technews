@@ -88,7 +88,62 @@ router.post('/', (req, res) => {
     res.status(201).json(item);
   } catch (error) {
     console.error('Failed to create news item:', error);
-    res.status(400).json({ message: 'Error creating news item.', details: error.message });
+    // Check if it's a duplicate error
+    if (error.message.includes('Duplicate article detected')) {
+      res.status(409).json({ message: 'Duplicate article detected.', details: error.message });
+    } else {
+      res.status(400).json({ message: 'Error creating news item.', details: error.message });
+    }
+  }
+});
+
+// New endpoint to get archive configuration
+router.get('/config/archive', (req, res) => {
+  try {
+    const { getArchiveConfig } = require('../newsStore.js');
+    const config = getArchiveConfig();
+    res.json(config);
+  } catch (error) {
+    console.error('Failed to get archive config:', error);
+    res.status(500).json({ message: 'Error retrieving archive configuration.' });
+  }
+});
+
+// New endpoint to update archive configuration
+router.put('/config/archive', (req, res) => {
+  try {
+    const { setArchiveConfig } = require('../newsStore.js');
+    setArchiveConfig(req.body);
+    const updatedConfig = getArchiveConfig();
+    res.json(updatedConfig);
+  } catch (error) {
+    console.error('Failed to update archive config:', error);
+    res.status(500).json({ message: 'Error updating archive configuration.' });
+  }
+});
+
+// New endpoint to get duplicates log
+router.get('/duplicates', (req, res) => {
+  try {
+    const { readDuplicatesLog } = require('../newsStore.js');
+    const limit = parseInt(req.query.limit) || 50;
+    const duplicates = readDuplicatesLog().slice(0, limit);
+    res.json(duplicates);
+  } catch (error) {
+    console.error('Failed to get duplicates log:', error);
+    res.status(500).json({ message: 'Error retrieving duplicates log.' });
+  }
+});
+
+// New endpoint to manually trigger archiving
+router.post('/archive/trigger', (req, res) => {
+  try {
+    const { autoArchiveNews } = require('../newsStore.js');
+    autoArchiveNews();
+    res.json({ message: 'Auto-archiving process completed.' });
+  } catch (error) {
+    console.error('Failed to trigger archiving:', error);
+    res.status(500).json({ message: 'Error triggering archiving process.' });
   }
 });
 
