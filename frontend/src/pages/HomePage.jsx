@@ -7,7 +7,7 @@ export default function HomePage() {
   useEffect(() => {
     fetch('/api/news')
       .then(res => res.json())
-      .then(data => setNews(data))
+      .then(data => setNews(data.items))
       .catch(err => console.error("Error fetching news:", err));
   }, []);
 
@@ -18,7 +18,7 @@ export default function HomePage() {
         <p className="text-lg md:text-xl">Your trusted source for the latest news and analysis.</p>
       </div>
       <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-        {news.map(article => (
+        {news && news.map(article => (
           <NewsCard key={article.slug} article={article} />
         ))}
       </div>
