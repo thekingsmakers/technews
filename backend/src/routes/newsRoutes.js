@@ -147,4 +147,40 @@ router.post('/archive/trigger', (req, res) => {
   }
 });
 
+// New endpoint to re-categorize all existing news
+router.post('/recategorize', async (req, res) => {
+  try {
+    const { categorizeArticle } = await import('../categorizer.js');
+    const { getAllNews, createNews } = await import('../newsStore.js'); // We'll use createNews to update
+
+    const allNews = getAllNews();
+    let updatedCount = 0;
+
+    for (const article of allNews) {
+      // Only re-categorize if it's 'General' or forced via query param ?force=true
+      if (article.category === 'General' || req.query.force === 'true') {
+        const newCategory = categorizeArticle(article.title, article.summary, article.content);
+
+        if (newCategory !== article.category) {
+          // Update the article
+          createNews({
+            ...article,
+            category: newCategory
+          });
+          updatedCount++;
+        }
+      }
+    }
+
+    res.json({
+      message: 'Re-categorization completed',
+      updatedCount,
+      totalScanned: allNews.length
+    });
+  } catch (error) {
+    console.error('Failed to re-categorize:', error);
+    res.status(500).json({ message: 'Error during re-categorization' });
+  }
+});
+
 export default router;

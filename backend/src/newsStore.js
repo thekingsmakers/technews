@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+import { categorizeArticle } from './categorizer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -311,17 +312,23 @@ export function createNews(payload) {
   const tags = sanitizeTags(payload.tags);
   const summary = sanitizeString(payload.summary || '');
   const content = sanitizeString(payload.content || '');
-  const category = sanitizeString(payload.category || 'General');
+  let category = sanitizeString(payload.category || 'General');
   const source = sanitizeString(payload.source || '');
   const imageUrl = sanitizeString(payload.imageUrl || '');
+
+  // Auto-categorize if needed
+  if (!category || category === 'General' || category === '') {
+    category = categorizeArticle(title, summary, content);
+    console.log(`Auto-categorized "${title}" as: ${category}`);
+  }
 
   const baseItem =
     existingIndex >= 0
       ? news[existingIndex]
       : {
-          id: crypto.randomUUID(),
-          createdAt: now
-        };
+        id: crypto.randomUUID(),
+        createdAt: now
+      };
 
   const item = {
     ...baseItem,
